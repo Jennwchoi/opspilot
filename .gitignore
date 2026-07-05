@@ -1,2 +1,7 @@
 .vercel
 .env*
+
+# local auto-sync watcher logs
+.sync.log
+.sync.stdout.log
+.sync.stderr.log
