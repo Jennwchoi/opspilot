@@ -1,0 +1,2416 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpsPilot — Operations Co-Pilot</title>
+  <meta name="description" content="AI co-pilot concept for logistics exception management — dynamic priority, evidence-based judgment, human-in-the-loop corrections.">
+<script src="./support.js"></script>
+<template id="__bundler_thumbnail" data-bg-color="#212121">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#212121"/>
+    <rect x="300" y="230" width="600" height="70" rx="10" fill="#e9e9e7"/>
+    <rect x="300" y="330" width="440" height="34" rx="8" fill="#6f6f6a"/>
+    <rect x="300" y="400" width="600" height="34" rx="8" fill="#3a3a37"/>
+    <rect x="300" y="470" width="520" height="34" rx="8" fill="#3a3a37"/>
+    <circle cx="210" cy="265" r="42" fill="#c69320"/>
+    <text x="210" y="280" font-family="monospace" font-size="46" font-weight="700" fill="#212121" text-anchor="middle">1</text>
+  </svg>
+</template>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#e9e9e7;font-family:'Geist',system-ui,-apple-system,sans-serif;color:#212121}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  @keyframes ovspin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div style="min-width:1360px;min-height:100vh;background:#e9e9e7">
+
+  <!-- ===================== PERSISTENT TOP BAR ===================== -->
+  <div style="display:flex;align-items:center;justify-content:space-between;height:52px;padding:0 20px;background:#212121;color:#f2f2ef;border-bottom:1px solid #212121">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="font-weight:700;font-size:14px;letter-spacing:.02em">OpsPilot</div>
+      <div style="font-size:11px;color:#9c9c98;border-left:1px solid #3a3a37;padding-left:14px">Priority Interpreter · Global Logistics Ops</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;font-size:11px">
+      <div style="display:flex;align-items:center;gap:7px;color:#b9b9b4">
+        <span style="width:7px;height:7px;border-radius:50%;background:#2CB380;display:inline-block"></span>
+        5 of 6 systems connected
+      </div>
+      <div class="mono" style="color:#87877f">updated {{ updatedAgo }}</div>
+      <div style="display:flex;align-items:center;gap:8px;border-left:1px solid #3a3a37;padding-left:16px">
+        <div style="width:26px;height:26px;border-radius:50%;background:#3a3a37;display:flex;align-items:center;justify-content:center;font-size:10px">RM</div>
+        <span style="color:#cfcfca">R. Mensah · Ops Mgr</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== BODY: LEFT RAIL + MAIN ===================== -->
+  <div style="display:flex;min-height:calc(100vh - 52px)">
+
+    <!-- LEFT RAIL -->
+    <div style="width:190px;flex:none;background:#fafafa;border-right:1px solid #e0e0dd;padding:16px 12px">
+      <div style="font-size:9px;letter-spacing:.14em;color:#6f6f6a;text-transform:uppercase;margin:4px 8px 10px">Workspace</div>
+      <sc-for list="{{ navItems }}" as="nav" hint-placeholder-count="5">
+        <div onClick="{{ nav.onClick }}" style="{{ nav.style }}">
+          <span>{{ nav.label }}</span>
+          <sc-if value="{{ nav.hasN }}" hint-placeholder-val="{{ false }}"><span class="mono" style="font-size:10px;opacity:.7">{{ nav.n }}</span></sc-if>
+        </div>
+      </sc-for>
+      <div style="height:1px;background:#e0e0dd;margin:14px 6px"></div>
+      <div style="font-size:9px;letter-spacing:.14em;color:#6f6f6a;text-transform:uppercase;margin:4px 8px 10px">SYSTEM STATUS</div>
+      <sc-for list="{{ sources }}" as="src" hint-placeholder-count="6">
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:11px;color:#6f6f6a">
+          <span style="{{ src.dotStyle }}"></span>
+          <span style="flex:1">{{ src.name }}</span>
+          <span style="{{ src.statusStyle }}">{{ src.status }}</span>
+        </div>
+      </sc-for>
+      
+    </div>
+
+    <!-- MAIN COLUMN -->
+    <div style="flex: 1; min-width: 0; padding: 22px 26px 40px; background-color: #FFFFFF">
+
+      <!-- ============ SCREEN 1: FOCUS ============ -->
+      <sc-if value="{{ isQueue }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px">
+          <div>
+            <div style="font-size:26px;font-weight:700">Focus</div>
+            <div style="font-size:12px;color:#6f6f6a;margin-top:3px">Open exceptions ranked by what needs your judgment now — priority is dynamic, not a fixed severity.</div>
+          </div>
+          
+        </div>
+
+        <!-- SUMMARY BAND: frames evaluation, not reconstruction -->
+        <div style="display:flex;gap:0;background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+          <div style="flex:1;padding:12px 16px;border-right:1px solid #e2e2df">
+            <div class="mono" style="font-size:28px;font-weight:600">9</div>
+            <div style="font-size:11px;color:#6f6f6a;margin-top:2px">Open exceptions</div>
+          </div>
+          <div onClick="{{ filterJudgment }}" style="flex:1;padding:12px 16px;border-right:1px solid #e2e2df;cursor:pointer" style-hover="background:#FEF4E8">
+            <div class="mono" style="font-size:28px;font-weight:600">{{ judgmentCount }}</div>
+            <div style="font-size:11px;color:#6f6f6a;margin-top:2px">Need your judgment</div>
+          </div>
+          <div style="flex:1;padding:12px 16px;border-right:1px solid #e2e2df">
+            <div class="mono" style="font-size:28px;font-weight:600">2</div>
+            <div style="font-size:11px;color:#6f6f6a;margin-top:2px">At risk within 6h</div>
+          </div>
+          <div style="flex:1;padding:12px 16px;display:flex;flex-direction:column;justify-content:center">
+            <div style="font-size:11px;color:#212121;font-weight:600">Re-ranked 2 min ago</div>
+            <div style="font-size:11px;color:#6f6f6a;margin-top:2px">6 exceptions moved rank</div>
+          </div>
+        </div>
+
+        <!-- FALSE-SUPPRESSION BANNER -->
+        <sc-if value="{{ showUnderRankBanner }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:14px;background:#FEF4E8;border:1px solid #f4d9b0;border-radius:8px">
+          <span style="font-size:13px;color:#F69014;flex:none">⚠</span>
+          <div onClick="{{ goReviewStaleCase }}" style="flex:1;font-size:12px;color:#7a5c1c;cursor:pointer;line-height:1.4"><span style="font-weight:700;color:#8a5a12">1 exception may be under-ranked</span> — SLA Engine is unavailable, so its risk score may be stale. <span style="text-decoration:underline">Review before it escalates.</span></div>
+          <div onClick="{{ goReviewStaleCase }}" style="font-size:11px;font-weight:700;color:#8a5a12;background:#fce6c8;border-radius:8px;padding:6px 11px;cursor:pointer;flex:none" style-hover="background:#f7d9ac">Review</div>
+          <div onClick="{{ dismissUnderRankBanner }}" title="Dismiss" style="font-size:14px;color:#b79154;cursor:pointer;flex:none;padding:0 2px" style-hover="color:#8a5a12">✕</div>
+        </div>
+        </sc-if>
+
+        <!-- FOCUS FILTER CHIP -->
+        <sc-if value="{{ hasFocusFilter }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;margin-bottom:10px">
+          <div style="display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;color:#4a4a46;background:#f0efec;border:1px solid #dcdbd7;border-radius:20px;padding:5px 12px 5px 11px">
+            <span>Filtered — {{ focusFilterLabel }} · {{ focusFilterCount }} {{ focusFilterCountWord }}</span>
+            <span onClick="{{ clearFocusFilter }}" style="color:#6f6f6a;cursor:pointer;font-weight:600;margin-left:2px" style-hover="color:#212121">Show all ✕</span>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- TABLE HEADER -->
+        <div style="display:grid;grid-template-columns:104px 1.3fr 1.55fr 100px 80px 116px 20px;gap:0;padding:0 14px 6px;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:4px;border-bottom:1px solid #d4d4d0;align-items:center">
+          <div onClick="{{ headers.priority.onClick }}" style="background-color: #FFFFFF">{{ headers.priority.label }}<span style="{{ headers.priority.arrowStyle }}">{{ headers.priority.arrow }}</span></div>
+          <div>Exception</div>
+          <div>What changed</div>
+          <div onClick="{{ headers.timerisk.onClick }}" title="Estimated time until this exception begins impacting SLA or operations." style="{{ headers.timerisk.style }};justify-content:flex-end;padding-right:32px;white-space:nowrap">{{ headers.timerisk.label }}<span style="{{ headers.timerisk.arrowStyle }}">{{ headers.timerisk.arrow }}</span></div>
+          <div onClick="{{ headers.affected.onClick }}" style="{{ headers.affected.style }}">{{ headers.affected.label }}<span style="{{ headers.affected.arrowStyle }}">{{ headers.affected.arrow }}</span></div>
+          <div onClick="{{ headers.state.onClick }}" style="{{ headers.state.style }}">{{ headers.state.label }}<span style="{{ headers.state.arrowStyle }}">{{ headers.state.arrow }}</span></div>
+          <div></div>
+        </div>
+
+        <!-- ROWS -->
+        <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;overflow:hidden">
+          <sc-for list="{{ queue }}" as="row" hint-placeholder-count="8">
+            <div onClick="{{ row.open }}" style="{{ row.rowStyle }}" style-hover="{{ row.rowHover }}">
+              <div style="display:grid;grid-template-columns:104px 1.3fr 1.55fr 100px 80px 116px 20px;gap:0;align-items:center;padding:11px 14px;min-height:56px">
+                <!-- PRIORITY: rank number + movement indicator adjacent (hero signal) -->
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="mono" style="font-size:21px;font-weight:700;line-height:1">{{ row.rankStr }}</span>
+                  <span class="mono" style="{{ row.moveTagStyle }}">{{ row.moveTag }}</span>
+                </div>
+                <!-- CASE: title anchor + muted id · owner -->
+                <div style="padding-right:14px">
+                  <div style="font-size:13px;font-weight:600;line-height:1.25">{{ row.issue }}</div>
+                  <div style="font-size:10.5px;color:#6f6f6a;margin-top:2px"><span class="mono">{{ row.id }}</span> · {{ row.area }} · {{ row.ownerName }}</div>
+                  <sc-if value="{{ row.underRanked }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:5px;display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:700;color:#8F5A00;background:#FEF4E8;border:1px solid #f4d9b0;border-radius:8px;padding:2px 7px">⚠ May be under-ranked</div>
+                  </sc-if>
+                  <sc-if value="{{ row.humanReviewed }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:5px;display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:700;color:#2A5DE9;background:#E3E9FE;border:1px solid #c4d2fb;border-radius:8px;padding:2px 7px">↑6 · Human-reviewed</div>
+                  </sc-if>
+                </div>
+                <!-- WHAT CHANGED: one short phrase, before → after inline -->
+                <div style="padding-right:14px;font-size:12px;color:#3a3a37;line-height:1.35">{{ row.whyPre }}<sc-if value="{{ row.whyHasDelta }}" hint-placeholder-val="{{ false }}"><span class="mono" style="color:#6f6f6a;text-decoration:line-through">{{ row.whyFrom }}</span><span style="color:#b0b0aa"> → </span><span class="mono" style="font-weight:700;color:#212121">{{ row.whyTo }}</span></sc-if></div>
+                <!-- RISK IN: right-aligned time to breach -->
+                <div class="mono" title="Estimated time until this exception begins impacting SLA or operations." style="text-align:right;padding-right:32px;font-size:13px;font-weight:700;{{ row.riskColor }}">{{ row.sla }}</div>
+                <!-- IMPACT: one metric -->
+                <div class="mono" style="font-size:12.5px;font-weight:600;color:#3a3a37">{{ row.impactShort }}</div>
+                <!-- DECISION STATE pill -->
+                <div><span style="{{ row.stateStyle }}"><span style="{{ row.stateDot }}"></span>{{ row.stateLabel }}</span></div>
+                <!-- row affordance -->
+                <div style="display:flex;justify-content:flex-end;align-items:center"><span style="{{ row.chevronStyle }}">›</span></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:10.5px;color:#6f6f6a;margin-top:10px">Click any exception to see what moved its priority. Nothing here was assembled by hand — signals arrive pre-correlated.</div>
+      </div>
+      </sc-if>
+
+      
+
+      <!-- ============ SCREEN: MONITOR (operational health roll-up) ============ -->
+      <sc-if value="{{ isMonitor }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px">
+          <div>
+            <div style="font-size:26px;font-weight:700">Monitor</div>
+            <div style="font-size:12px;color:#6f6f6a;margin-top:3px">Situational awareness across all operations — most areas calm. Surfacing anything that may be brewing.</div>
+          </div>
+          <div style="font-size:11px;color:#6f6f6a">Health from connected source systems · not a full shipment list</div>
+        </div>
+
+        <!-- health summary band -->
+        <div style="display:flex;gap:0;background:#fff;border:1px solid #e0e0dd;border-radius:8px;overflow:hidden;margin-bottom:18px">
+          <div style="flex:1.6;padding:14px 18px;border-right:1px solid #e2e2df;display:flex;flex-direction:column;justify-content:center">
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:5px">Network health</div>
+            <div style="font-size:15px;font-weight:700">{{ monitorHealth.headline }}</div>
+          </div>
+          <div style="flex:1;padding:14px 18px;border-right:1px solid #e2e2df;display:flex;align-items:center;gap:9px">
+            <span style="width:10px;height:10px;border-radius:50%;background:#E24343;flex:none"></span>
+            <div><div class="mono" style="font-size:28px;font-weight:600">{{ monitorHealth.red }}</div><div style="font-size:10.5px;color:#6f6f6a">At risk</div></div>
+          </div>
+          <div style="flex:1;padding:14px 18px;border-right:1px solid #e2e2df;display:flex;align-items:center;gap:9px">
+            <span style="width:10px;height:10px;border-radius:50%;background:#c69320;flex:none"></span>
+            <div><div class="mono" style="font-size:28px;font-weight:600">{{ monitorHealth.amber }}</div><div style="font-size:10.5px;color:#6f6f6a">Watch</div></div>
+          </div>
+          <div style="flex:1;padding:14px 18px;display:flex;align-items:center;gap:9px">
+            <span style="width:10px;height:10px;border-radius:50%;background:#2CB380;flex:none"></span>
+            <div><div class="mono" style="font-size:28px;font-weight:600">{{ monitorHealth.green }}</div><div style="font-size:10.5px;color:#6f6f6a">On track</div></div>
+          </div>
+        </div>
+        <div style="font-size:10.5px;color:#6f6f6a;margin-top:8px;margin-bottom:18px;line-height:1.5">At risk — breach expected without action · Watch — trending toward thresholds · On track — within normal range</div>
+
+        <!-- domain roll-up -->
+        <div style="display:grid;grid-template-columns:16px 1.4fr 0.85fr 158px 138px;gap:0;padding:0 16px 6px;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;border-bottom:1px solid #d4d4d0;margin-bottom:4px">
+          <div></div><div>Operational area</div><div>Status</div><div>Open items</div><div style="text-align:right">Source</div>
+        </div>
+        <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;overflow:hidden">
+          <sc-for list="{{ monitorDomains }}" as="d" hint-placeholder-count="7">
+            <div onClick="{{ d.onRow }}" style="{{ d.rowStyle }}" style-hover="{{ d.rowHover }}">
+              <div><span style="{{ d.dotStyle }}"></span></div>
+              <div style="padding-right:12px">
+                <div style="font-size:13px;font-weight:600">{{ d.area }}</div>
+                <div style="font-size:11px;color:#6f6f6a;margin-top:2px">{{ d.line }}</div>
+              </div>
+              <div><span style="{{ d.chipStyle }}"><span style="{{ d.dotStyle }}"></span>{{ d.statusLabel }}</span></div>
+              <div>
+                <sc-if value="{{ d.hasOpen }}" hint-placeholder-val="{{ false }}">
+                  <span style="{{ d.focusStyle }}">{{ d.focusLabel }}</span>
+                </sc-if>
+              </div>
+              <div style="text-align:right"><span onClick="{{ d.openSource }}" style="{{ d.sourceStyle }}" style-hover="color:#4a4a46">Open in {{ d.tool }} ↗</span></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:10.5px;color:#6f6f6a;margin-top:10px">Monitor shows area health — both what's already in Focus and what may be heading there. Open an At-risk or Watch area to inspect the signal and challenge that assessment.</div>
+
+        <!-- EMERGING-RISK DETAIL PANEL -->
+        <sc-if value="{{ monitorPanelOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeMonitorDetail }}" style="position:fixed;inset:0;background:rgba(20,20,18,.34);z-index:60"></div>
+        <div style="position:fixed;top:0;right:0;bottom:0;width:440px;max-width:94vw;background:#faf9f7;border-left:1px solid #e0e0dd;box-shadow:0 12px 32px rgba(0,0,0,.14);z-index:61;display:flex;flex-direction:column">
+          <div style="padding:16px 20px;border-bottom:1px solid #e2e2df;background:#fff;display:flex;align-items:flex-start;justify-content:space-between">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="{{ mp.chipStyle }}"><span style="{{ mp.dotStyle }}"></span>{{ mp.statusLabel }}</span>
+                <span style="font-size:11px;color:#6f6f6a">{{ mp.area }}</span>
+              </div>
+              <div style="font-size:17px;font-weight:700;margin-top:8px;line-height:1.3">{{ mp.signalTitle }}</div>
+            </div>
+            <div onClick="{{ closeMonitorDetail }}" style="font-size:18px;color:#6f6f6a;cursor:pointer;line-height:1;padding:2px 4px" style-hover="color:#4a4a46">×</div>
+          </div>
+
+          <div style="flex:1;overflow-y:auto;padding:18px 20px">
+            <!-- the developing signal -->
+            <div style="background:#f7f7f5;border:none;border-radius:8px;padding:15px 17px;margin-bottom:16px">
+              <div class="mono" style="display:flex;align-items:baseline;gap:10px;font-size:22px;font-weight:700">
+                <span style="color:#6f6f6a">{{ mp.from }}</span><span style="font-size:15px;color:#b0b0aa">→</span><span style="color:#212121">{{ mp.to }}</span>
+              </div>
+              <div style="font-size:11px;color:#6f6f6a;margin-top:6px">{{ mp.window }}</div>
+            </div>
+
+            <!-- AI assessment -->
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:7px">AI assessment</div>
+            <div style="display:flex;align-items:center;gap:8px;background:#f7f7f5;border:none;border-radius:8px;padding:12px 15px;margin-bottom:16px">
+              <span style="{{ mp.assessDot }}"></span>
+              <span style="font-size:13px;font-weight:700;color:#212121">{{ mp.assessment }}</span>
+            </div>
+
+            <!-- at-risk only: exceptions already in Focus for this area -->
+            <sc-if value="{{ mp.hasAreaFocus }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:8px">In this area — already in Focus</div>
+            <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+              <sc-for list="{{ mp.areaFocusRows }}" as="r" hint-placeholder-count="2">
+                <div onClick="{{ r.open }}" style="display:flex;align-items:center;gap:10px;padding:10px 15px;border-bottom:1px solid #efeeeb;cursor:pointer" style-hover="background:#faf9f7">
+                  <span style="flex:1;font-size:12px;color:#3a3a37;line-height:1.45">{{ r.label }}</span>
+                  <span style="{{ r.stateStyle }}"><span style="{{ r.stateDot }}"></span>{{ r.stateLabel }}</span>
+                </div>
+              </sc-for>
+            </div>
+            </sc-if>
+
+            <!-- why not in focus -->
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:8px">{{ mp.whyLabel }}</div>
+            <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+              <sc-for list="{{ mp.whyRows }}" as="w" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:9px;padding:10px 15px;border-bottom:1px solid #efeeeb">
+                  <span style="width:5px;height:5px;border-radius:50%;background:#6f6f6a;flex:none"></span>
+                  <span style="font-size:12px;color:#3a3a37">{{ w.text }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <!-- what would move this to focus -->
+            <sc-if value="{{ mp.hasTriggers }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:8px">What would move this to Focus?</div>
+            <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:8px">
+              <sc-for list="{{ mp.triggerRows }}" as="t" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:9px;padding:10px 15px;border-bottom:1px solid #f2f1ee">
+                  <span style="font-size:11px;color:#c69320;flex:none">▲</span>
+                  <span style="font-size:12px;color:#3a3a37;font-weight:500">{{ t.text }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:10.5px;color:#6f6f6a;line-height:1.5">OpsPilot isn't asking for action yet. If you believe this is already Focus-worthy, challenge the assessment below.</div>
+            </sc-if>
+          </div>
+
+          <div style="padding:13px 20px;border-top:1px solid #e2e2df;background:#fff;display:flex;gap:10px">
+            <div onClick="{{ closeMonitorDetail }}" style="flex:1;padding:11px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;color:#4a4a46" style-hover="background:#f1f0ec;border-color:#a9a9a3;color:#212121">Keep Monitoring</div>
+            <div onClick="{{ mp.primary }}" style="flex:1;padding:11px;background:#2A5DE9;color:#f2f2ef;border:1px solid #2A5DE9;border-radius:8px;text-align:center;font-size:12px;font-weight:700;cursor:pointer" style-hover="background:#1F4AD1;border-color:#1F4AD1">{{ mp.primaryLabel }}</div>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- ============ SCREEN 2: EXCEPTION DETAIL / WHY NOW ============ -->
+      <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <!-- DELEGATE ASSIGNMENT MODAL -->
+        <sc-if value="{{ showDelegate }}" hint-placeholder-val="{{ false }}">
+        <div style="position:fixed;inset:0;background:rgba(20,20,18,.42);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px">
+          <div style="width:452px;max-width:100%;background:#fff;border:1px solid #e0e0dd;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.14);overflow:hidden">
+            <div style="padding:15px 18px;border-bottom:1px solid #e2e2df;display:flex;align-items:center;justify-content:space-between">
+              <div style="font-size:15px;font-weight:700">Delegate exception</div>
+              <span style="font-size:10px;color:#4a4a46;background:#f0efec;border:1px solid #dcdbd7;border-radius:8px;padding:3px 8px">Reversible · recorded for audit</span>
+            </div>
+            <div style="padding:16px 18px">
+              <!-- operational context -->
+              <div style="display:flex;align-items:baseline;gap:9px;padding:9px 12px;background:#f7f7f5;border:none;border-radius:8px;margin-bottom:16px">
+                <span class="mono" style="font-size:11px;font-weight:700">SHP-2841</span>
+                <span style="font-size:11.5px;color:#3a3a37">Customs hold — inspection issued</span>
+              </div>
+              <!-- assign to -->
+              <div style="font-size:11.5px;font-weight:600;margin-bottom:7px">Assign to <span style="color:#a33">*</span></div>
+              <input value="{{ assigneeQuery }}" onInput="{{ setQuery }}" placeholder="Search person, role, or team…" style="width:100%;box-sizing:border-box;padding:9px 11px;font-size:12px;border:1px solid #e0e0dd;border-radius:8px 8px 0 0;font-family:system-ui,sans-serif;outline:none;color:#212121">
+              <div style="border:1px solid #e0e0dd;border-top:none;border-radius:0 0 8px 8px;max-height:158px;overflow:auto;margin-bottom:16px">
+                <sc-for list="{{ assigneeOptions }}" as="a" hint-placeholder-count="4">
+                  <div onClick="{{ a.onClick }}" style="{{ a.style }}" style-hover="{{ a.styleHover }}">
+                    <span style="font-size:12px;font-weight:600;color:#212121">{{ a.label }}</span>
+                    <span style="font-size:10px;color:#6f6f6a">{{ a.meta }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <!-- note -->
+              <div style="font-size:11.5px;font-weight:600;margin-bottom:7px">Note <span style="font-weight:400;color:#6f6f6a">· optional</span></div>
+              <input value="{{ delegateNote }}" onInput="{{ setDelegateNote }}" placeholder="Short delegation context…" style="width:100%;box-sizing:border-box;padding:9px 11px;font-size:12px;border:1px solid #e0e0dd;border-radius:8px;font-family:system-ui,sans-serif;outline:none;color:#212121">
+            </div>
+            <div style="padding:12px 18px;border-top:1px solid #e2e2df;display:flex;gap:10px;justify-content:flex-end;background:#faf9f7">
+              <div onClick="{{ cancelDelegate }}" style="padding:10px 18px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:#4a4a46" style-hover="background:#f1f0ec;border-color:#a9a9a3;color:#212121">Cancel</div>
+              <div onClick="{{ confirmDelegate }}" style="{{ delegateBtnStyle }}">Delegate</div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- TAKE ACTION PANEL -->
+        <sc-if value="{{ showAction }}" hint-placeholder-val="{{ false }}">
+        <div style="position:fixed;inset:0;background:rgba(20,20,18,.42);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px">
+          <div style="width:468px;max-width:100%;background:#fff;border:1px solid #e0e0dd;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.14);overflow:hidden">
+            <!-- FORM -->
+            <sc-if value="{{ actionForm }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <div style="padding:15px 18px;border-bottom:1px solid #e2e2df;display:flex;align-items:center;justify-content:space-between">
+                <div style="font-size:15px;font-weight:700">Take Action</div>
+                <span style="font-size:10px;color:#4a4a46;background:#f0efec;border:1px solid #dcdbd7;border-radius:8px;padding:3px 8px">Records intended response</span>
+              </div>
+              <div style="padding:16px 18px;max-height:66vh;overflow:auto">
+                <!-- case context -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:11px 12px;background:#f7f7f5;border:none;border-radius:8px;margin-bottom:16px">
+                  <div><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:2px">Exception</div><div style="font-size:11.5px;font-weight:600;color:#212121">Customs hold — inspection issued</div></div>
+                  <div><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:2px">Current priority</div><div class="mono" style="font-size:12px;font-weight:700">#1</div></div>
+                  <div><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:2px">Risk in</div><div class="mono" style="font-size:12px;font-weight:700">4h 10m</div></div>
+                  <div><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:2px">Impact</div><div style="font-size:11.5px;font-weight:600;color:#212121">12 orders at risk</div></div>
+                </div>
+                <!-- select response -->
+                <div style="font-size:11.5px;font-weight:700;margin-bottom:9px">Select response</div>
+                <sc-for list="{{ responseOptions }}" as="r" hint-placeholder-count="5">
+                  <div onClick="{{ r.onClick }}" style="{{ r.style }}"><span style="{{ r.dot }}"></span>{{ r.label }}</div>
+                </sc-for>
+                <!-- owner -->
+                <div style="font-size:11.5px;font-weight:700;margin:14px 0 8px">Owner</div>
+                <div style="display:flex;flex-wrap:wrap;gap:7px">
+                  <sc-for list="{{ actionOwnerOptions }}" as="o" hint-placeholder-count="4">
+                    <div onClick="{{ o.onClick }}" style="{{ o.style }}">{{ o.label }}</div>
+                  </sc-for>
+                </div>
+                <!-- note -->
+                <div style="font-size:11.5px;font-weight:700;margin:14px 0 7px">Operational note <span style="font-weight:400;color:#6f6f6a">· optional</span></div>
+                <input value="{{ actionNote }}" onInput="{{ setActionNote }}" placeholder="Add context for the team…" style="width:100%;box-sizing:border-box;padding:9px 11px;font-size:12px;border:1px solid #e0e0dd;border-radius:8px;font-family:system-ui,sans-serif;outline:none;color:#212121">
+              </div>
+              <div style="padding:12px 18px;border-top:1px solid #e2e2df;display:flex;gap:10px;justify-content:flex-end;background:#faf9f7">
+                <div onClick="{{ cancelAction }}" style="padding:10px 18px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:#4a4a46" style-hover="background:#f1f0ec;border-color:#a9a9a3;color:#212121">Cancel</div>
+                <div onClick="{{ startResponse }}" style="{{ startResponseStyle }}" style-hover="{{ startResponseHover }}">Start Response</div>
+              </div>
+            </div>
+            </sc-if>
+            <!-- CONFIRMATION -->
+            <sc-if value="{{ actionDone }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:22px">
+              <div style="display:flex;align-items:center;gap:9px;margin-bottom:16px">
+                <span style="width:22px;height:22px;border-radius:50%;background:#212121;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px">✓</span>
+                <div style="font-size:16px;font-weight:700">Response started</div>
+              </div>
+              <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+                <div style="padding:12px 14px;border-bottom:1px solid #efeeeb"><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:3px">Response</div><div style="font-size:13px;font-weight:600">{{ actionResponse }}</div></div>
+                <div style="padding:12px 14px;border-bottom:1px solid #efeeeb"><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:3px">Owner</div><div style="font-size:12.5px;font-weight:600">{{ actionOwnerShort }}</div></div>
+                <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between"><div><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:3px">Exception status changed to</div><span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#2f5c8a;background:#e3ecf6;border-radius:8px;padding:4px 9px"><span style="width:6px;height:6px;border-radius:50%;background:#3d76b8"></span>In Progress</span></div></div>
+              </div>
+              <div onClick="{{ finishAction }}" style="width:100%;box-sizing:border-box;padding:11px;background:#2A5DE9;color:#f2f2ef;border:1px solid #2A5DE9;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#1F4AD1;border-color:#1F4AD1">Return to Focus</div>
+            </div>
+            </sc-if>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- MONITOR CHANGES PANEL -->
+        <sc-if value="{{ showMonitor }}" hint-placeholder-val="{{ false }}">
+        <div style="position:fixed;inset:0;background:rgba(20,20,18,.42);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px">
+          <div style="width:468px;max-width:100%;background:#fff;border:1px solid #e0e0dd;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.14);overflow:hidden">
+            <!-- FORM -->
+            <sc-if value="{{ monitorForm }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <div style="padding:15px 18px;border-bottom:1px solid #e2e2df">
+                <div style="font-size:15px;font-weight:700">Monitor Changes</div>
+                <div style="font-size:11px;color:#6f6f6a;margin-top:3px">Keep this case under observation as operational signals continue to update.</div>
+              </div>
+              <div style="padding:16px 18px;max-height:66vh;overflow:auto">
+                <!-- current signals -->
+                <div style="font-size:11.5px;font-weight:700;margin-bottom:9px">Current signals</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+                  <sc-for list="{{ monitorSignalRows }}" as="sg" hint-placeholder-count="4">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;padding:9px 11px;background:#f7f7f5;border:none;border-radius:8px">
+                      <span style="font-size:11px;color:#6f6f6a">{{ sg.label }}</span>
+                      <span class="mono" style="font-size:12px;font-weight:700;color:#212121">{{ sg.value }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <!-- watch for -->
+                <div style="font-size:11.5px;font-weight:700;margin-bottom:9px">Watch for</div>
+                <sc-for list="{{ watchOptions }}" as="w" hint-placeholder-count="5">
+                  <div onClick="{{ w.onClick }}" style="{{ w.style }}"><span style="{{ w.box }}">{{ w.check }}</span>{{ w.label }}</div>
+                </sc-for>
+                <!-- review condition -->
+                <div style="font-size:11.5px;font-weight:700;margin:14px 0 9px">Review condition</div>
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <sc-for list="{{ conditionOptions }}" as="c" hint-placeholder-count="3">
+                    <div onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}</div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="padding:12px 18px;border-top:1px solid #e2e2df;display:flex;gap:10px;justify-content:flex-end;background:#faf9f7">
+                <div onClick="{{ cancelMonitor }}" style="padding:10px 18px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:#4a4a46" style-hover="background:#f1f0ec;border-color:#a9a9a3;color:#212121">Cancel</div>
+                <div onClick="{{ startMonitoring }}" style="padding:10px 20px;background:#212121;color:#f2f2ef;border:1px solid #212121;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Start Monitoring</div>
+              </div>
+            </div>
+            </sc-if>
+            <!-- CONFIRMATION -->
+            <sc-if value="{{ monitorDone }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:22px">
+              <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px">
+                <span style="width:22px;height:22px;border-radius:50%;background:#212121;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px">✓</span>
+                <div style="font-size:16px;font-weight:700">Monitoring started</div>
+              </div>
+              <div style="font-size:11.5px;color:#6f6f6a;line-height:1.5;margin-bottom:16px">OpsPilot will continue tracking selected operational signals.</div>
+              <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+                <div style="padding:12px 14px;border-bottom:1px solid #efeeeb"><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:3px">Notify when</div><div style="font-size:12.5px;font-weight:600">{{ monitorCondition }}</div></div>
+                <div style="padding:12px 14px"><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:3px">Exception status</div><span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#55616f;background:#eceef1;border-radius:8px;padding:4px 9px"><span style="width:6px;height:6px;border-radius:50%;background:#8a97a5"></span>Monitoring</span></div>
+              </div>
+              <div onClick="{{ finishMonitor }}" style="width:100%;box-sizing:border-box;padding:11px;background:#2A5DE9;color:#f2f2ef;border:1px solid #2A5DE9;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#1F4AD1;border-color:#1F4AD1">Return to Focus</div>
+            </div>
+            </sc-if>
+          </div>
+        </div>
+        </sc-if>
+
+        <div onClick="{{ goQueue }}" style="font-size:11px;color:#6f6f6a;cursor:pointer;margin-bottom:12px">← Focus</div>
+
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start">
+
+          <!-- LEFT: evidence -->
+          <div>
+            <!-- header -->
+            <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:18px 20px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div class="mono" style="font-size:11px;color:#7a7a75">SHP-2841</div>
+                    <span style="font-size:9.5px;color:#212121;display:flex;align-items:center;gap:4px"><span style="width:5px;height:5px;background:#212121;display:inline-block"></span>Needs judgment</span>
+                  </div>
+                  <div style="font-size:20px;font-weight:700;margin-top:5px">Customs hold — inspection issued</div>
+                  <div style="font-size:11px;color:#6f6f6a;margin-top:6px">{{ detailArea }} · <span style="color:#212121;font-weight:600">{{ detailOwnerName }}</span></div>
+                </div>
+                <!-- big movement -->
+                <div style="text-align:right">
+                  <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:4px">Priority moved</div>
+                  <div class="mono" style="display:flex;align-items:center;gap:9px;font-size:26px;font-weight:700">
+                    <span style="color:#a3a39d">#8</span>
+                    <span style="font-size:16px;color:#6f6f6a">→</span>
+                    <span>#1</span>
+                    <span class="mono" style="display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1B7A55;background:#E5F1EA;border-radius:8px;padding:3px 9px;line-height:1">↑7</span>
+                  </div>
+                  <div style="font-size:10.5px;color:#6f6f6a;margin-top:4px">in the last 40 minutes</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 1 · CURRENT STATUS — what is happening right now (established first) -->
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin:2px 0 8px 2px">Current status</div>
+            <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid #e2e2df">
+                <div style="min-width:0">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#c69320;flex:none"></span>
+                    <span style="font-size:13px;font-weight:700;color:#212121;line-height:1.35">Held at customs — inspection in progress</span>
+                  </div>
+                  <div style="font-size:11px;color:#6f6f6a;margin-top:4px;padding-left:16px">Jebel Ali (JEA)</div>
+                </div>
+                <span onClick="{{ goSourceRecord }}" style="font-size:11px;color:#6f6f6a;cursor:pointer;flex:none;white-space:nowrap" style-hover="color:#4a4a46">Open in Broker EDI ↗</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0">
+                <div style="padding:12px 16px;border-right:1px solid #e2e2df">
+                  <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:5px">ETA</div>
+                  <div class="mono" style="font-size:13px;font-weight:700;color:#212121">02:10 Wed</div>
+                  <div class="mono" style="font-size:11px;font-weight:700;color:#E24343;margin-top:2px">+18h delay</div>
+                </div>
+                <div style="padding:12px 16px;border-right:1px solid #e2e2df">
+                  <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:5px">SLA risk</div>
+                  <div class="mono" style="font-size:13px;font-weight:700;color:#212121">88%</div>
+                </div>
+                <div style="padding:12px 16px;border-right:1px solid #e2e2df">
+                  <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:5px">Exposure</div>
+                  <div style="font-size:13px;font-weight:700;color:#212121">12 orders</div>
+                  <div style="font-size:11px;font-weight:600;color:#212121;margin-top:2px">2 VIP</div>
+                </div>
+                <div style="padding:12px 16px">
+                  <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:5px">Handling</div>
+                  <div style="display:flex;align-items:flex-start;gap:6px">
+                    <span style="{{ handlingDotStyle }};margin-top:4px"></span>
+                    <span style="font-size:12px;font-weight:600;color:#212121;line-height:1.4">{{ handlingLabel }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2 · NEEDS YOUR JUDGMENT — the unresolved assumption (uncertainty, not error) -->
+            <div style="background:#fff;border:1px solid #f0d9a8;border-left:3px solid #F69014;border-radius:8px;padding:16px 18px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#8a5a12;font-weight:700">Needs your judgment</span>
+                  <span style="font-size:9px;font-weight:700;letter-spacing:.04em;color:#8F5A00;background:#FEF4E8;border:1px solid #f4d9b0;border-radius:8px;padding:1px 6px">LOW CONFIDENCE</span>
+                </div>
+                <span onClick="{{ verifyInSource }}" style="font-size:11px;font-weight:600;color:#8a5a12;cursor:pointer;text-decoration:underline">Verify in source ↗</span>
+              </div>
+              <div style="font-size:15px;font-weight:700;line-height:1.4;color:#212121">Priority #1 assumes all 12 linked orders are at risk.</div>
+              <div style="font-size:12px;color:#6f6f6a;margin-top:5px;line-height:1.5">2 critical inputs are unconfirmed and could change the current priority.</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+                <div style="border:none;border-radius:8px;padding:11px 13px;background:#f7f7f5">
+                  <div style="font-size:12.5px;font-weight:700;margin-bottom:7px;line-height:1.3">Buffer stock at destination DC</div>
+                  <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#8a5a12"><span style="width:6px;height:6px;border-radius:50%;background:#F69014;flex:none"></span>Not reported</div>
+                  <div style="font-size:10.5px;color:#6f6f6a;margin-top:4px">Source · WMS</div>
+                </div>
+                <div style="border:none;border-radius:8px;padding:11px 13px;background:#f7f7f5">
+                  <div style="font-size:12.5px;font-weight:700;margin-bottom:7px;line-height:1.3">Inspection duration</div>
+                  <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#8a5a12"><span style="width:6px;height:6px;border-radius:50%;background:#F69014;flex:none"></span>No estimate</div>
+                  <div style="font-size:10.5px;color:#6f6f6a;margin-top:4px">Source · Broker</div>
+                </div>
+              </div>
+              <div style="font-size:11.5px;color:#7a5c1c;margin-top:12px;line-height:1.5">These unknowns could change the current priority.</div>
+            </div>
+
+            <!-- 3 · WHY #1 NOW — the ranking story, four equal signals in one row -->
+            <div style="margin:2px 0 10px 2px">
+              <div style="font-size:13px;font-weight:700">Why #1 now</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+              <div style="padding:13px 16px;border-right:1px solid #e2e2df">
+                <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:6px">SLA risk</div>
+                <div class="mono" style="font-size:14.5px;font-weight:700"><span style="color:#6f6f6a;text-decoration:line-through">42%</span> <span style="color:#b0b0aa">→</span> <span style="color:#212121">88%</span></div>
+              </div>
+              <div style="padding:13px 16px;border-right:1px solid #e2e2df">
+                <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:6px">ETA delay</div>
+                <div class="mono" style="font-size:14.5px;font-weight:700;color:#212121">+18h</div>
+              </div>
+              <div style="padding:13px 16px;border-right:1px solid #e2e2df">
+                <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:6px">Orders at risk</div>
+                <div class="mono" style="font-size:14.5px;font-weight:700"><span style="color:#6f6f6a;text-decoration:line-through">4</span> <span style="color:#b0b0aa">→</span> <span style="color:#212121">12</span></div>
+              </div>
+              <div style="padding:13px 16px">
+                <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:6px">Fallback options</div>
+                <div class="mono" style="font-size:14.5px;font-weight:700"><span style="color:#6f6f6a;text-decoration:line-through">2</span> <span style="color:#b0b0aa">→</span> <span style="color:#212121">0</span></div>
+              </div>
+            </div>
+
+            <!-- 4 · WHAT CHANGED — SIGNAL LEDGER (secondary verification evidence) -->
+            <div style="margin:2px 0 10px 2px">
+              <div style="font-size:13px;font-weight:700">What changed — signal ledger</div>
+              <div style="font-size:11px;color:#6f6f6a;margin-top:2px">Secondary verification evidence — the full Was → Now record, newest first.</div>
+            </div>
+            <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+              <div style="display:grid;grid-template-columns:64px 1fr 150px 150px 96px;gap:0;padding:9px 16px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#6f6f6a;border-bottom:1px solid #e2e2df;background:#faf9f7">
+                <div>Time</div><div>Signal</div><div>Was</div><div>Now</div><div>Source</div>
+              </div>
+              <sc-for list="{{ ledger }}" as="ev" hint-placeholder-count="5">
+                <div style="display:grid;grid-template-columns:64px 1fr 150px 150px 96px;gap:0;padding:12px 16px;border-bottom:1px solid #efeeeb;align-items:center">
+                  <div class="mono" style="font-size:11px;color:#7a7a75">{{ ev.time }}</div>
+                  <div style="font-size:12px;font-weight:600">{{ ev.signal }}</div>
+                  <div class="mono" style="font-size:11px;color:#6f6f6a;text-decoration:line-through">{{ ev.was }}</div>
+                  <div class="mono" style="font-size:11.5px;font-weight:600;color:#212121">{{ ev.now }}</div>
+                  <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;font-weight:600">{{ ev.source }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+          </div>
+
+          <!-- RIGHT: impact + human actions -->
+          <div style="position:sticky;top:16px">
+            <!-- downstream: operational scope (where impact spreads) -->
+            <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:16px;margin-bottom:14px">
+              <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:11px">Affected operations</div>
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <div style="display:flex;align-items:center;gap:9px"><span style="width:6px;height:6px;border-radius:50%;background:#6f6f6a;flex:none"></span><span style="font-size:12.5px;font-weight:600;color:#212121">2 priority customers</span></div>
+                <div style="display:flex;align-items:center;gap:9px"><span style="width:6px;height:6px;border-radius:50%;background:#6f6f6a;flex:none"></span><span style="font-size:12.5px;font-weight:600;color:#212121">1 warehouse · DXB</span></div>
+                <div style="display:flex;align-items:center;gap:9px"><span style="width:6px;height:6px;border-radius:50%;background:#6f6f6a;flex:none"></span><span style="font-size:12.5px;font-weight:600;color:#212121">1 delivery route</span></div>
+              </div>
+            </div>
+
+            <!-- WHAT SHOULD HAPPEN NEXT: four distinct human judgments -->
+            <div style="background:#212121;border-radius:8px;padding:14px">
+              <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#87877f;margin-bottom:4px">What should happen next?</div>
+              <div style="font-size:10px;color:#87877f;line-height:1.5;margin-bottom:11px">Choose how this case should be handled, or correct the AI priority if operational context is missing.</div>
+              <div style="display:flex;align-items:center;gap:8px;padding:9px 11px;background:#26261f;border:1px solid #3a3a37;border-radius:8px;margin-bottom:12px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#7d61b3;flex:none"></span>
+                <span style="font-size:11.5px;color:#f2f2ef;font-weight:600">{{ detailArea }} · {{ detailOwnerName }}</span>
+                <sc-if value="{{ isDelegated }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;color:#87877f;margin-left:auto">delegated · reversible</span></sc-if>
+              </div>
+              <!-- operational handling decisions -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div onClick="{{ goAct }}" style="padding:11px;background:#f2f2ef;color:#212121;border:1px solid #f2f2ef;border-radius:8px;text-align:center;font-size:12px;font-weight:700;cursor:pointer" style-hover="background:#fff;border-color:#fff">Take Action</div>
+                <div onClick="{{ goDelegate }}" style="padding:11px;background:transparent;color:#e6e6e1;border:1px solid #55554f;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#26261f;border-color:#7a7a72;color:#fff">Delegate</div>
+                <div onClick="{{ goMonitor }}" style="grid-column:1 / -1;padding:11px;background:transparent;color:#e6e6e1;border:1px solid #55554f;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#26261f;border-color:#7a7a72;color:#fff">Monitor Changes</div>
+              </div>
+              <!-- divider + priority correction (separate dimension) -->
+              <div style="height:1px;background:#3a3a37;margin:14px 0 12px"></div>
+              <div style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#87877f;margin-bottom:8px">AI priority incorrect?</div>
+              <div onClick="{{ goOverride }}" style="padding:11px;background:transparent;color:#e6e6e1;border:1px dashed #6a6a62;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#26261f;border-color:#8a8a82;color:#fff">Override Priority</div>
+              <div style="font-size:10px;color:#87877f;margin-top:11px;line-height:1.5">AI surfaces evidence. The operational decision is yours and stays reversible.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ============ SCREEN 2B: UNDER-RANK REVIEW (SHP-4471) ============ -->
+      <sc-if value="{{ isReviewDetail }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:980px;margin:0 auto">
+        <div onClick="{{ goQueue }}" style="font-size:11px;color:#6f6f6a;cursor:pointer;margin-bottom:12px">← Focus queue</div>
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start">
+
+          <!-- LEFT: evidence -->
+          <div>
+            <!-- header -->
+            <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:18px 20px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div class="mono" style="font-size:11px;color:#7a7a75">SHP-4471</div>
+                    <span style="font-size:9px;font-weight:700;letter-spacing:.04em;color:#8F5A00;background:#FEF4E8;border:1px solid #f4d9b0;border-radius:8px;padding:2px 7px">NEEDS YOUR JUDGMENT</span>
+                  </div>
+                  <div style="font-size:20px;font-weight:700;margin-top:5px">Reefer genset fault — pharma export</div>
+                  <div style="font-size:11px;color:#6f6f6a;margin-top:6px">{{ reviewDetailArea }} · <span style="color:#212121;font-weight:600">{{ reviewDetailOwner }}</span></div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:4px">AI rank</div>
+                  <div class="mono" style="font-size:26px;font-weight:700">#9</div>
+                  <div style="font-size:10.5px;color:#8a5a12;margin-top:4px">may be understated</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- NEEDS YOUR JUDGMENT → RECALC → RECOMMENDATION · all in the same Exception Detail shell -->
+
+            <!-- STATE 1: review + correct uncertain evidence, then recalculate -->
+            <sc-if value="{{ njReview }}" hint-placeholder-val="{{ true }}">
+            <div style="background:#fff;border:1px solid #f0d9a8;border-left:3px solid #F69014;border-radius:8px;padding:16px 18px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#8a5a12;font-weight:700">Needs your judgment</span>
+                  <span style="font-size:9px;font-weight:700;letter-spacing:.04em;color:#8F5A00;background:#FEF4E8;border:1px solid #f4d9b0;border-radius:8px;padding:1px 6px">STALE SIGNAL</span>
+                </div>
+                <span onClick="{{ verifyInSource }}" style="font-size:11px;font-weight:600;color:#8a5a12;cursor:pointer;text-decoration:underline">Verify in source ↗</span>
+              </div>
+              <div style="font-size:15px;font-weight:700;line-height:1.4;color:#212121">Priority #9 may be understated because the SLA risk signal is unverified.</div>
+              <div style="font-size:12px;color:#6f6f6a;margin-top:5px;line-height:1.5">Confirm or correct the uncertain evidence before OpsPilot recalculates this case against the active Focus queue.</div>
+
+              <div style="display:flex;flex-direction:column;gap:9px;margin-top:14px">
+                <div style="border:none;border-radius:8px;padding:11px 13px;background:#f7f7f5">
+                  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="flex:1;min-width:180px">
+                      <div style="font-size:12.5px;font-weight:700;line-height:1.3">SLA risk signal</div>
+                      <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#8a5a12;margin-top:5px"><span style="width:6px;height:6px;border-radius:50%;background:#F69014;flex:none"></span>Unverified · last updated 3h ago</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex:none">
+                      <div onClick="{{ slaLooks }}" style="{{ slaLooksStyle }}" style-hover="{{ slaLooksHover }}">Looks right</div>
+                      <div onClick="{{ slaNot }}" style="{{ slaNotStyle }}" style-hover="{{ slaNotHover }}">Not right</div>
+                    </div>
+                  </div>
+                  <sc-if value="{{ slaNotOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ece7dc">
+                    <div style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#6f6f6a;margin-bottom:7px">What's wrong with this signal?</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px">
+                      <sc-for list="{{ slaReasonOptions }}" as="r" hint-placeholder-count="5">
+                        <div onClick="{{ r.pick }}" style="{{ r.style }}" style-hover="{{ r.styleHover }}">{{ r.label }}</div>
+                      </sc-for>
+                    </div>
+                  </div>
+                  </sc-if>
+                </div>
+                <div style="border:none;border-radius:8px;padding:11px 13px;background:#f7f7f5">
+                  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="flex:1;min-width:180px">
+                      <div style="font-size:12.5px;font-weight:700;line-height:1.3">Temperature risk</div>
+                      <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#8a5a12;margin-top:5px"><span style="width:6px;height:6px;border-radius:50%;background:#F69014;flex:none"></span>Rising · genset fault unresolved</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex:none">
+                      <div onClick="{{ tempLooks }}" style="{{ tempLooksStyle }}" style-hover="{{ tempLooksHover }}">Looks right</div>
+                      <div onClick="{{ tempNot }}" style="{{ tempNotStyle }}" style-hover="{{ tempNotHover }}">Not right</div>
+                    </div>
+                  </div>
+                  <sc-if value="{{ tempNotOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ece7dc">
+                    <div style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#6f6f6a;margin-bottom:7px">What's wrong with this signal?</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px">
+                      <sc-for list="{{ tempReasonOptions }}" as="r" hint-placeholder-count="5">
+                        <div onClick="{{ r.pick }}" style="{{ r.style }}" style-hover="{{ r.styleHover }}">{{ r.label }}</div>
+                      </sc-for>
+                    </div>
+                  </div>
+                  </sc-if>
+                </div>
+                <div style="border:none;border-radius:8px;padding:11px 13px;background:#f7f7f5;display:flex;align-items:center;gap:12px">
+                  <div style="flex:1">
+                    <div style="font-size:12.5px;font-weight:700;line-height:1.3">Affected orders</div>
+                    <div style="font-size:11px;font-weight:600;color:#6f6f6a;margin-top:5px">7 orders · 1 VIP</div>
+                  </div>
+                  <span style="font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7a7a75;background:#efeeeb;border:1px solid #dcdbd7;border-radius:8px;padding:3px 8px;flex:none">Verified</span>
+                </div>
+              </div>
+
+              <div style="margin-top:15px">
+                <div style="font-size:11px;font-weight:700;color:#4a4a46">Add context the AI doesn't have <span style="color:#6f6f6a;font-weight:500">· Optional</span></div>
+                <div style="font-size:10.5px;color:#6f6f6a;margin-top:2px;margin-bottom:7px">Add operational information that is not available in connected systems.</div>
+                <textarea placeholder="Add missing operational context..." style="width:100%;box-sizing:border-box;min-height:60px;resize:vertical;border:1px solid #dcdbd7;border-radius:8px;background:#fff;padding:10px 12px;font-size:12px;font-family:inherit;color:#3a3a37;line-height:1.5">7 affected orders include 1 VIP order.</textarea>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:14px">
+                <sc-if value="{{ recalcNotReady }}" hint-placeholder-val="{{ true }}"><span style="font-size:10.5px;color:#6f6f6a">Judge the flagged signals to continue</span></sc-if>
+                <div onClick="{{ recalculate }}" style="{{ recalcBtnStyle }}" style-hover="{{ recalcBtnHover }}">Recalculate Priority</div>
+              </div>
+            </div>
+            </sc-if>
+
+            <!-- STATE 1.5: recalculating against the live queue -->
+            <sc-if value="{{ njLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fff;border:1px solid #e2e2df;border-radius:8px;padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+              <span style="width:16px;height:16px;border:2px solid #e0e0dd;border-top-color:#212121;border-radius:50%;display:inline-block;animation:ovspin .7s linear infinite;flex:none"></span>
+              <span style="font-size:13px;color:#4a4a46;font-weight:600">Re-evaluating against 8 active exceptions…</span>
+            </div>
+            </sc-if>
+
+            <!-- STATE 2: AI recommendation, in the same page -->
+            <sc-if value="{{ njDone }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fff;border:1px solid #c4d2fb;border-left:3px solid #2A5DE9;border-radius:8px;padding:16px 18px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+                <span style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#2A5DE9;font-weight:700">Priority recommendation</span>
+                <span style="font-size:9px;font-weight:700;letter-spacing:.04em;color:#2A5DE9;background:#E3E9FE;border:1px solid #c4d2fb;border-radius:8px;padding:1px 6px">RECALCULATED</span>
+              </div>
+              <div style="font-size:16px;font-weight:700;line-height:1.4;color:#212121">Recommend moving this exception from #9 to #3.</div>
+              <div style="font-size:12px;color:#6f6f6a;margin-top:5px;line-height:1.55">Based on the confirmed stale SLA signal, rising temperature risk, and 1 VIP order, this case now has higher time-to-impact and exposure than the exceptions currently ranked #4–#9.</div>
+
+              <div style="display:flex;align-items:center;gap:16px;background:#E3E9FE;border:1px solid #c4d2fb;border-radius:8px;padding:13px 16px;margin-top:14px">
+                <div style="flex:none">
+                  <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#7f8db0;margin-bottom:3px">Current rank</div>
+                  <div class="mono" style="font-size:18px;font-weight:700;color:#8a97b8">#9</div>
+                </div>
+                <span style="font-size:18px;color:#7f8db0">→</span>
+                <div style="flex:none">
+                  <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#2A5DE9;margin-bottom:3px">Recommended rank</div>
+                  <div class="mono" style="font-size:18px;font-weight:700;color:#2A5DE9">#3</div>
+                </div>
+                <span class="mono" style="margin-left:auto;font-size:14px;font-weight:700;color:#2A5DE9;background:#fff;border:1px solid #c4d2fb;border-radius:8px;padding:3px 9px;flex:none">↑6</span>
+              </div>
+
+              <!-- where this case fits -->
+              <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin:16px 0 8px">Where this case fits</div>
+              <div style="border:1px solid #dcdbd7;border-radius:8px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #efeeeb">
+                  <span class="mono" style="font-size:14px;font-weight:700;color:#6f6f6a;width:24px">#2</span>
+                  <div style="flex:1"><div style="font-size:12px;font-weight:600">Port congestion — vessel dwell rising</div><div style="font-size:10px;color:#6f6f6a;margin-top:1px">Risk in 9h 30m · 6 orders</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #efeeeb;background:#F1F1F1;box-shadow:inset 3px 0 0 #2f6fb0">
+                  <span class="mono" style="font-size:14px;font-weight:700;color:#2A5DE9;width:24px">#3</span>
+                  <div style="flex:1"><div style="font-size:12px;font-weight:700;color:#212121">Reefer genset fault — pharma export</div><div style="font-size:10px;color:#5a5a56;margin-top:1px">Rising temperature · 7 orders · 1 VIP · SLA risk unverified</div></div>
+                  <span style="font-size:8.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#2A5DE9;background:#E3E9FE;border:1px solid #c4d2fb;border-radius:8px;padding:3px 7px;flex:none">Recommended</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #efeeeb">
+                  <span class="mono" style="font-size:14px;font-weight:700;color:#6f6f6a;width:24px">#4</span>
+                  <div style="flex:1"><div style="font-size:12px;font-weight:600">Carrier capacity shortfall</div><div style="font-size:10px;color:#6f6f6a;margin-top:1px">Risk in 1d 6h · 9 orders</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;padding:10px 14px">
+                  <span class="mono" style="font-size:14px;font-weight:700;color:#6f6f6a;width:24px">#5</span>
+                  <div style="flex:1"><div style="font-size:12px;font-weight:600">Documentation mismatch — HS code</div><div style="font-size:10px;color:#6f6f6a;margin-top:1px">Risk in 5h 40m · 3 orders</div></div>
+                </div>
+              </div>
+
+              <!-- why #3 -->
+              <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin:16px 0 8px">Why OpsPilot recommends #3</div>
+              <div style="border:1px solid #dcdbd7;border-radius:8px;overflow:hidden">
+                <div style="padding:11px 14px;border-bottom:1px solid #efeeeb">
+                  <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#2A5DE9;font-weight:700;margin-bottom:3px">Time-sensitive temperature risk</div>
+                  <div style="font-size:11.5px;color:#4a4a46;line-height:1.45">Temperature rising on a pharma export <span style="color:#1B7A55;font-weight:600">(verified · reefer telemetry)</span>.</div>
+                </div>
+                <div style="padding:11px 14px;border-bottom:1px solid #efeeeb">
+                  <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#2A5DE9;font-weight:700;margin-bottom:3px">High-value exposure</div>
+                  <div style="font-size:11.5px;color:#4a4a46;line-height:1.45">7 affected orders include 1 VIP order.</div>
+                </div>
+                <div style="padding:11px 14px;background:#faf9f7">
+                  <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#8a5a12;font-weight:700;margin-bottom:3px">Unverified SLA signal · why review was needed</div>
+                  <div style="font-size:11.5px;color:#6f6f6a;line-height:1.5">SLA risk hasn't updated in 3h, so the original #9 rank was based on incomplete evidence. The verified signals above already justify #3 on their own.</div>
+                </div>
+              </div>
+
+              <div style="font-size:11px;color:#6f6f6a;line-height:1.55;margin-top:12px"><span style="font-weight:700;color:#4a4a46">Even without a trusted SLA number, </span>the verified signals — rising temperature on a pharma export and 1 VIP order — rank this above the exceptions at #4–#9.</div>
+
+              <div style="display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end;align-items:center;border-top:1px solid #e2e2df;margin-top:15px;padding-top:14px">
+                <div onClick="{{ addMoreContext }}" style="font-size:11.5px;font-weight:600;color:#6f6f6a;cursor:pointer;margin-right:auto" style-hover="color:#212121">← Add more context</div>
+                <div onClick="{{ keepUnderRankPriority }}" style="padding:10px 16px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:#4a4a46" style-hover="background:#f1f0ec;border-color:#a9a9a3;color:#212121">Keep current priority</div>
+                <div onClick="{{ openReprioConfirm }}" style="padding:10px 18px;background:#212121;color:#f2f2ef;border:1px solid #212121;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer" style-hover="background:#000">Set priority to #3</div>
+              </div>
+            </div>
+            </sc-if>
+
+            <!-- WHAT WE KNOW -->
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin:2px 0 8px 2px">Available evidence</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+              <div style="padding:13px 16px;border-right:1px solid #e2e2df">
+                <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:6px">AI rank</div>
+                <div class="mono" style="font-size:14.5px;font-weight:700;color:#212121">#9</div>
+              </div>
+              <div style="padding:13px 16px;border-right:1px solid #e2e2df">
+                <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:6px">SLA risk</div>
+                <div style="font-size:13px;font-weight:700;color:#8a5a12">Unverified</div>
+              </div>
+              <div style="padding:13px 16px">
+                <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:6px">Impact</div>
+                <div style="font-size:13px;font-weight:700;color:#212121">7 orders · 1 VIP</div>
+              </div>
+            </div>
+
+            <!-- SIGNAL LEDGER -->
+            <div style="margin:2px 0 10px 2px">
+              <div style="font-size:13px;font-weight:700">What changed — signal ledger</div>
+              <div style="font-size:11px;color:#6f6f6a;margin-top:2px">Newest first · one signal is stale, which is why the rank is uncertain.</div>
+            </div>
+            <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+              <div style="display:grid;grid-template-columns:64px 1fr 150px 150px 110px;gap:0;padding:9px 16px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#6f6f6a;border-bottom:1px solid #e2e2df;background:#faf9f7">
+                <div>Time</div><div>Signal</div><div>Was</div><div>Now</div><div>Source</div>
+              </div>
+              <div style="display:grid;grid-template-columns:64px 1fr 150px 150px 110px;gap:0;padding:12px 16px;border-bottom:1px solid #efeeeb;align-items:center;background:#FEF9F0">
+                <div class="mono" style="font-size:11px;color:#8a5a12">3h ago</div>
+                <div style="font-size:12px;font-weight:600;color:#8a5a12">SLA risk <span style="font-size:9px;font-weight:700;letter-spacing:.04em;color:#8F5A00;background:#FEF4E8;border:1px solid #f4d9b0;border-radius:8px;padding:1px 5px;margin-left:4px">STALE</span></div>
+                <div class="mono" style="font-size:11px;color:#6f6f6a;text-decoration:line-through">31%</div>
+                <div class="mono" style="font-size:11.5px;font-weight:600;color:#8a5a12">no update</div>
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;font-weight:600">SLA Engine</div>
+              </div>
+              <div style="display:grid;grid-template-columns:64px 1fr 150px 150px 110px;gap:0;padding:12px 16px;border-bottom:1px solid #efeeeb;align-items:center">
+                <div class="mono" style="font-size:11px;color:#7a7a75">22m</div>
+                <div style="font-size:12px;font-weight:600">Genset temperature</div>
+                <div class="mono" style="font-size:11px;color:#6f6f6a;text-decoration:line-through">2.4°C</div>
+                <div class="mono" style="font-size:11.5px;font-weight:600;color:#212121">6.1°C rising</div>
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;font-weight:600">Reefer telemetry</div>
+              </div>
+              <div style="display:grid;grid-template-columns:64px 1fr 150px 150px 110px;gap:0;padding:12px 16px;align-items:center">
+                <div class="mono" style="font-size:11px;color:#7a7a75">40m</div>
+                <div style="font-size:12px;font-weight:600">Genset status</div>
+                <div class="mono" style="font-size:11px;color:#6f6f6a;text-decoration:line-through">OK</div>
+                <div class="mono" style="font-size:11.5px;font-weight:600;color:#212121">Fault</div>
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;font-weight:600">Reefer telemetry</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: scope + keep/override decision -->
+          <div style="position:sticky;top:16px">
+            <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:16px;margin-bottom:14px">
+              <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:11px">Affected operations</div>
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <div style="display:flex;align-items:center;gap:9px"><span style="width:6px;height:6px;border-radius:50%;background:#6f6f6a;flex:none"></span><span style="font-size:12.5px;font-weight:600;color:#212121">1 VIP customer</span></div>
+                <div style="display:flex;align-items:center;gap:9px"><span style="width:6px;height:6px;border-radius:50%;background:#6f6f6a;flex:none"></span><span style="font-size:12.5px;font-weight:600;color:#212121">7 pharma orders</span></div>
+                <div style="display:flex;align-items:center;gap:9px"><span style="width:6px;height:6px;border-radius:50%;background:#6f6f6a;flex:none"></span><span style="font-size:12.5px;font-weight:600;color:#212121">1 cold-chain lane</span></div>
+              </div>
+            </div>
+
+            <div style="background:#f7f7f5;border:none;border-radius:8px;padding:14px 15px">
+              <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:7px">How this works</div>
+              <div style="font-size:11px;color:#6f6f6a;line-height:1.6">Confirm or correct the uncertain evidence, then <span style="font-weight:600;color:#212121">Recalculate Priority</span>. OpsPilot re-ranks this case against the active queue and recommends a new position — you set priority or keep the current rank.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- REPRIORITIZE CONFIRMATION MODAL -->
+      <sc-if value="{{ showReprioDone }}" hint-placeholder-val="{{ false }}">
+      <div style="position:fixed;inset:0;background:rgba(20,20,18,.42);display:flex;align-items:center;justify-content:center;z-index:60;padding:24px">
+        <div style="background:#fff;border-radius:8px;width:100%;max-width:460px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,.14)">
+          <div style="padding:18px 22px;border-bottom:1px solid #e2e2df">
+            <div style="display:flex;align-items:center;gap:9px">
+              <span style="width:18px;height:18px;border-radius:50%;background:#2CB380;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none">✓</span>
+              <div style="font-size:16px;font-weight:700">Priority set</div>
+            </div>
+            <div style="font-size:13px;font-weight:600;color:#212121;margin-top:9px;line-height:1.4">You set Reefer genset fault to <span class="mono" style="color:#2A5DE9">#3</span> <span style="color:#6f6f6a;font-weight:500">(AI had ranked #9)</span>.</div>
+          </div>
+          <div style="padding:16px 22px;display:flex;flex-direction:column;gap:13px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div><div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:4px">Change</div><div class="mono" style="font-size:12px;font-weight:700">Priority #9 → #3</div></div>
+              <div><div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:4px">Confirmed by</div><div style="font-size:11.5px;font-weight:600">R. Mensah · Ops Mgr</div></div>
+            </div>
+            <div style="border-top:1px solid #efeeeb;padding-top:12px">
+              <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:4px">Human correction</div>
+              <div style="font-size:12px;font-weight:600;color:#212121">Signal is outdated</div>
+            </div>
+            <div style="border-top:1px solid #efeeeb;padding-top:12px">
+              <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:5px">Confirmed evidence</div>
+              <div style="font-size:11.5px;color:#3a3a37;line-height:1.6">SLA risk signal stale 3h<br>Temperature risk rising</div>
+            </div>
+            <div style="border-top:1px solid #efeeeb;padding-top:12px">
+              <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:4px">Added context</div>
+              <div style="font-size:11.5px;color:#3a3a37;line-height:1.5">7 affected orders include 1 VIP order</div>
+            </div>
+            <div style="border-top:1px solid #efeeeb;padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div><div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:4px">AI recommendation</div><div style="font-size:11.5px;font-weight:600;color:#2A5DE9">Move to #3</div></div>
+              <div><div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:4px">Timestamp</div><div class="mono" style="font-size:11.5px;font-weight:600">14:33 UTC</div></div>
+            </div>
+            <div style="border-top:1px solid #efeeeb;padding-top:12px">
+              <div onClick="{{ toggleCascade }}" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <span style="width:22px;height:22px;border-radius:8px;background:#E3E9FE;color:#2A5DE9;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none">4</span>
+                <div style="flex:1">
+                  <div style="font-size:11.5px;font-weight:600;color:#212121">4 other exceptions shifted rank as a result</div>
+                  <div style="font-size:10px;color:#6f6f6a;margin-top:1px">The blast radius of this correction across the active queue</div>
+                </div>
+                <span class="mono" style="font-size:12px;color:#6f6f6a;flex:none">{{ cascadeChevron }}</span>
+              </div>
+              <sc-if value="{{ cascadeOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-top:10px">
+                <sc-for list="{{ cascadeRows }}" as="c" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #f2f1ee">
+                    <div style="flex:1;font-size:11px;color:#3a3a37">{{ c.title }}</div>
+                    <span class="mono" style="font-size:11px;color:#6f6f6a;flex:none">{{ c.from }}</span>
+                    <span style="font-size:10px;color:#b0b0aa;flex:none">→</span>
+                    <span class="mono" style="font-size:11px;font-weight:700;color:#212121;flex:none">{{ c.to }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              </sc-if>
+            </div>
+            <div style="font-size:11px;color:#6f6f6a;line-height:1.5">This correction is recorded in Audit &amp; Review and remains reversible.</div>
+          </div>
+          <div style="padding:12px 22px;border-top:1px solid #e2e2df;background:#faf9f7;display:flex;justify-content:flex-end">
+            <div onClick="{{ backToFocusPromoted }}" style="padding:10px 20px;background:#2A5DE9;color:#f2f2ef;border:1px solid #2A5DE9;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer" style-hover="background:#1F4AD1;border-color:#1F4AD1">Return to Focus</div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ============ SCREEN 3: OVERRIDE ============ -->
+      <sc-if value="{{ isOverride }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:760px;margin:0 auto">
+        <div onClick="{{ goDetail }}" style="font-size:11px;color:#6f6f6a;cursor:pointer;margin-bottom:12px">← Exception Detail</div>
+        <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:22px 24px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:18px;font-weight:700">Override Priority</div>
+            <span style="font-size:10px;color:#4a4a46;background:#f0efec;border:1px solid #dcdbd7;border-radius:8px;padding:4px 9px">Human correction</span>
+          </div>
+          <div class="mono" style="font-size:11px;color:#7a7a75;margin-bottom:18px">{{ ovCaseLine }}</div>
+
+          <!-- change priority -->
+          <div style="font-size:12px;font-weight:600;margin-bottom:9px">1 · Set priority</div>
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #dcdbd7;border-radius:8px;background:#faf9f7">
+              <span style="font-size:11px;color:#6f6f6a">AI ranked</span>
+              <span class="mono" style="font-size:16px;font-weight:700">{{ ovAiRank }}</span>
+            </div>
+            <span style="color:#6f6f6a">→</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;color:#6f6f6a">Your rank</span>
+              <sc-for list="{{ rankOptions }}" as="opt" hint-placeholder-count="5">
+                <div onClick="{{ opt.pick }}" style="{{ opt.style }}" style-hover="{{ opt.styleHover }}">{{ opt.label }}</div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- structured reason -->
+          <div style="font-size:12px;font-weight:600;margin-bottom:9px">2 · Correction reason</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+            <sc-for list="{{ reasonOptions }}" as="r" hint-placeholder-count="4">
+              <div onClick="{{ r.pick }}" style="{{ r.style }}" style-hover="{{ r.styleHover }}">{{ r.label }}</div>
+            </sc-for>
+          </div>
+
+          <!-- secondary tags -->
+          <div style="font-size:12px;font-weight:600;margin-bottom:9px">3 · Secondary tags <span style="font-weight:400;color:#6f6f6a">· optional</span></div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+            <span style="font-size:11px;color:#3a3a37;background:#fff;border:1px dashed #e0e0dd;border-radius:8px;padding:7px 11px;cursor:pointer" style-hover="border-color:#6f6f6a;background:#f5f4f1;color:#212121">+ Alternate capacity confirmed</span>
+            <span style="font-size:11px;color:#3a3a37;background:#fff;border:1px dashed #e0e0dd;border-radius:8px;padding:7px 11px;cursor:pointer" style-hover="border-color:#6f6f6a;background:#f5f4f1;color:#212121">+ Dependency not at risk</span>
+            <span style="font-size:11px;color:#3a3a37;background:#fff;border:1px dashed #e0e0dd;border-radius:8px;padding:7px 11px;cursor:pointer" style-hover="border-color:#6f6f6a;background:#f5f4f1;color:#212121">+ Data quality issue</span>
+          </div>
+
+          <!-- optional context -->
+          <div style="font-size:12px;font-weight:600;margin-bottom:9px">4 · Add context the AI didn't have <span style="font-weight:400;color:#6f6f6a">· optional, recorded in audit</span></div>
+          <div style="border:1px solid #dcdbd7;border-radius:8px;background:#faf9f7;padding:11px 13px;font-size:12px;color:#5a5a56;line-height:1.5;margin-bottom:18px">
+            {{ contextEcho }}
+          </div>
+
+          <!-- reversibility notice -->
+          <div style="display:flex;gap:10px;border:1px dashed #a9a9a3;border-radius:8px;padding:12px 14px;background:#f3f2ef;margin-bottom:20px">
+            <div style="font-size:11px;color:#4a4a46;line-height:1.6">
+              <div>· This is recorded as <b>your</b> correction, attributed to you.</div>
+              <div>· Fully <b>reversible</b> — you can undo from Focus.</div>
+              <div>· It does <b>not</b> become a permanent rule. Logged as calibration evidence for review.</div>
+            </div>
+          </div>
+
+          <!-- audit record -->
+          <div style="border:none;border-radius:8px;background:#f7f7f5;padding:12px 14px;margin-bottom:18px">
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:10px">Audit record · on submit</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
+              <div>
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:3px">Submitted by</div>
+                <div style="font-size:11.5px;font-weight:600">R. Mensah · Ops Mgr</div>
+              </div>
+              <div>
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:3px">Timestamp</div>
+                <div class="mono" style="font-size:11px;font-weight:600">14:26 UTC · pending</div>
+              </div>
+              <div>
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:3px">Related shipment</div>
+                <div class="mono" style="font-size:11px;font-weight:600">{{ ovShip }}</div>
+              </div>
+              <div>
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:3px">Current rank</div>
+                <div class="mono" style="font-size:11px;font-weight:600">{{ ovRankLine }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <div onClick="{{ goDetail }}" style="padding:10px 18px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;color:#4a4a46" style-hover="background:#f1f0ec;border-color:#a9a9a3;color:#212121">Cancel</div>
+            <div onClick="{{ applyOverride }}" style="padding:10px 20px;background:#2A5DE9;color:#f2f2ef;border:1px solid #2A5DE9;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#1F4AD1;border-color:#1F4AD1">Apply correction &amp; recalculate</div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ============ SCREEN 4: RECOVERY ============ -->
+      <sc-if value="{{ isRecovery }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <div style="font-size:19px;font-weight:700">Recalculation Impact</div>
+            <div style="font-size:12px;color:#6f6f6a;margin-top:3px">Exceptions reprioritized after your human correction. Review the before → after rank changes below.</div>
+          </div>
+          <div onClick="{{ undoOverride }}" style="padding:9px 16px;border:1px solid #a9a9a3;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:#fff">↺ Undo override</div>
+        </div>
+
+        <!-- correction banner -->
+        <div style="display:flex;gap:0;background:#212121;color:#f2f2ef;border-radius:8px;overflow:hidden;margin-bottom:18px">
+          <div style="padding:15px 18px;border-right:1px solid #3a3a37;flex:1.4">
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#87877f;margin-bottom:6px">Correction applied</div>
+            <div style="font-size:13px;font-weight:600;line-height:1.4">Local buffer stock confirmed — dependent orders not at risk</div>
+            <div class="mono" style="font-size:10.5px;color:#9c9c98;margin-top:5px">SHP-2841 · by R. Mensah · just now</div>
+          </div>
+          <div style="padding:15px 18px;flex:1;display:flex;align-items:center;gap:22px">
+            <div>
+              <div style="font-size:9.5px;color:#87877f;margin-bottom:4px">Shipments changed rank</div>
+              <div class="mono" style="font-size:20px;font-weight:700">6</div>
+            </div>
+            <div>
+              <div style="font-size:9.5px;color:#87877f;margin-bottom:4px">New signals used</div>
+              <div class="mono" style="font-size:20px;font-weight:700">1</div>
+            </div>
+            <div style="flex:1;font-size:10.5px;color:#b9b9b4;line-height:1.5">Only shipments whose priority depended on SHP-2841's affected operations changed rank.</div>
+          </div>
+        </div>
+
+        <!-- headline moves -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+          <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:16px 18px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:4px">Customs hold</div>
+            <div class="mono" style="font-size:10.5px;color:#7a7a75;margin-bottom:10px">SHP-2841</div>
+            <div class="mono" style="display:flex;align-items:baseline;gap:9px;font-size:22px;font-weight:700">
+              <span style="color:#a3a39d">#1</span><span style="font-size:14px;color:#b0b0aa">→</span><span>#6</span>
+              <span class="mono" style="font-size:15px;font-weight:700;color:#6f6f6a">↓5</span>
+            </div>
+            <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;font-weight:600;margin-top:7px">After your correction</div>
+          </div>
+          <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:16px 18px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:4px">Port congestion</div>
+            <div class="mono" style="font-size:10.5px;color:#7a7a75;margin-bottom:10px">SHP-7712</div>
+            <div class="mono" style="display:flex;align-items:baseline;gap:9px;font-size:22px;font-weight:700">
+              <span style="color:#a3a39d">#2</span><span style="font-size:14px;color:#b0b0aa">→</span><span>#1</span>
+              <span class="mono" style="font-size:15px;font-weight:700;color:#212121">↑1</span>
+            </div>
+            <div style="font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;font-weight:600;margin-top:7px">Now top priority</div>
+          </div>
+        </div>
+
+        <!-- full recalculated queue with diff -->
+        <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin:0 0 8px 2px">Updated priorities</div>
+        <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:130px 1.3fr 1.5fr 130px;gap:0;padding:9px 16px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#6f6f6a;border-bottom:1px solid #e2e2df;background:#faf9f7">
+            <div>New · was</div><div>Exception</div><div>Effect of your correction</div><div>State</div>
+          </div>
+          <sc-for list="{{ recoveredQueue }}" as="row" hint-placeholder-count="8">
+            <div style="display:grid;grid-template-columns:130px 1.3fr 1.5fr 130px;gap:0;padding:12px 16px;border-bottom:1px solid #efeeeb;align-items:center;{{ row.rowBg }}">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div class="mono" style="font-size:17px;font-weight:700;line-height:1">{{ row.rankStr }}</div>
+                <span class="mono" style="{{ row.moveTypoStyle }}">{{ row.moveTypo }}</span>
+              </div>
+              <div>
+                <div style="font-size:12.5px;font-weight:600">{{ row.issue }}</div>
+                <div class="mono" style="font-size:10px;color:#7a7a75;margin-top:2px">{{ row.id }}</div>
+              </div>
+              <div style="font-size:11px;color:#5a5a56;line-height:1.4;padding-right:12px">{{ row.effect }}</div>
+              <div style="display:flex;align-items:center;gap:6px"><span style="{{ row.stateStyle }}"><span style="{{ row.stateDot }}"></span>{{ row.stateLabel }}</span><sc-if value="{{ row.overridden }}" hint-placeholder-val="{{ false }}"><span style="{{ row.overrideModStyle }}">Overridden</span></sc-if></div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+          <div onClick="{{ undoOverride }}" style="padding:10px 18px;border:1px solid #a9a9a3;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#4a4a46" style-hover="background:#f1f0ec;border-color:#7a7a75;color:#212121">↺ Undo &amp; restore AI ranking</div>
+          <div onClick="{{ goQueue }}" style="padding:10px 20px;background:#2A5DE9;color:#f2f2ef;border:1px solid #2A5DE9;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#1F4AD1;border-color:#1F4AD1">Accept &amp; return to Focus</div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ============ SCREEN: AUDIT & REVIEW ============ -->
+      <!-- LEVEL 1 — audit list, grouped by Exception (read-only entry point) -->
+      <sc-if value="{{ isAuditList }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px">
+          <div>
+            <div style="font-size:26px;font-weight:700">Audit &amp; Review</div>
+            <div style="font-size:12px;color:#6f6f6a;margin-top:3px">Every exception's full lifecycle, read-only. Review is case-driven — open an exception to see what happened and why.</div>
+          </div>
+          <div style="font-size:11px;color:#6f6f6a">Operations Lead · Auditor view</div>
+        </div>
+
+        <!-- filters -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;font-size:11px">
+          <div style="flex:1;display:flex;align-items:center;gap:6px;padding:6px 11px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;color:#6f6f6a;max-width:240px">Search case ID…</div>
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 11px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;color:#4a4a46;cursor:pointer" style-hover="background:#f5f4f1;border-color:#a9a9a3;color:#212121">Date · Last 7 days ▾</div>
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 11px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;color:#4a4a46;cursor:pointer" style-hover="background:#f5f4f1;border-color:#a9a9a3;color:#212121">Owner · All ▾</div>
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 11px;background:#fff;border:1px solid #e0e0dd;border-radius:8px;color:#4a4a46;cursor:pointer" style-hover="background:#f5f4f1;border-color:#a9a9a3;color:#212121">Status · All ▾</div>
+        </div>
+
+        <!-- calibration summary strip -->
+        <div style="display:flex;gap:0;background:#fff;border:1px solid #e0e0dd;border-radius:8px;overflow:hidden;margin-bottom:14px">
+          <div style="flex:1;padding:11px 16px;border-right:1px solid #e2e2df">
+            <div class="mono" style="font-size:28px;font-weight:600">{{ auditSummary.total }}</div>
+            <div style="font-size:10.5px;color:#6f6f6a;margin-top:2px">Decisions reviewed</div>
+          </div>
+          <div style="flex:1;padding:11px 16px;border-right:1px solid #e2e2df">
+            <div class="mono" style="font-size:28px;font-weight:600">{{ auditSummary.assessmentHeldPct }}</div>
+            <div style="font-size:10.5px;color:#6f6f6a;margin-top:2px">AI assessment held</div>
+          </div>
+          <div style="flex:1;padding:11px 16px;border-right:1px solid #e2e2df">
+            <div class="mono" style="font-size:28px;font-weight:600">{{ auditSummary.overRanked }}</div>
+            <div style="font-size:10.5px;color:#6f6f6a;margin-top:2px">Over-ranked</div>
+          </div>
+          <div style="flex:1;padding:11px 16px;border-right:1px solid #e2e2df">
+            <div class="mono" style="font-size:28px;font-weight:600">{{ auditSummary.underRanked }}</div>
+            <div style="font-size:10.5px;color:#6f6f6a;margin-top:2px">Under-ranked</div>
+          </div>
+          <div style="flex:1;padding:11px 16px">
+            <div style="font-size:13px;font-weight:700;color:#212121;line-height:1.35">{{ auditSummary.confirmedText }}</div>
+            <sc-if value="{{ auditSummary.pendingNote }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:10.5px;color:#6f6f6a;margin-top:4px">{{ auditSummary.pendingNote }}</div>
+            </sc-if>
+          </div>
+        </div>
+
+        <!-- table -->
+        <div style="display:grid;grid-template-columns:1.7fr 128px 1.05fr 118px 84px;gap:0;padding:0 16px 6px;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;border-bottom:1px solid #d4d4d0;margin-bottom:4px">
+          <div>Case</div><div>Review signal</div><div>Decision</div><div>Owner</div><div>Updated</div>
+        </div>
+        <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;overflow:hidden">
+          <sc-for list="{{ auditListRows }}" as="r" hint-placeholder-count="6">
+            <div onClick="{{ r.open }}" style="{{ r.rowStyle }}" style-hover="{{ r.rowHover }}">
+              <div style="padding-right:12px">
+                <div><span class="mono" style="font-size:12px;font-weight:700">{{ r.ex }}</span> <span style="font-size:12.5px;font-weight:600">· {{ r.title }}</span></div>
+                <div style="margin-top:5px"><span style="{{ r.statusStyle }}"><span style="{{ r.statusDot }}"></span>{{ r.statusLabel }}</span></div>
+              </div>
+              <div>
+                <sc-if value="{{ r.hasReviewChip }}" hint-placeholder-val="{{ false }}">
+                <span style="{{ r.reviewSignalStyle }}">{{ r.reviewSignal }}</span>
+                </sc-if>
+                <sc-if value="{{ r.hasReviewQuiet }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="{{ r.reviewSignalDotStyle }}"></span>
+                  <span style="font-size:11px;color:#6f6f6a">{{ r.reviewSignal }}</span>
+                </div>
+                </sc-if>
+              </div>
+              <div>
+                <div style="{{ r.decisionLine1Style }}">{{ r.decisionLine1 }}</div>
+                <div style="{{ r.decisionLine2Style }}">{{ r.decisionLine2 }}</div>
+                <sc-if value="{{ r.hasDecisionLine3 }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:10px;color:#6f6f6a;margin-top:2px;line-height:1.35">{{ r.decisionLine3 }}</div>
+                </sc-if>
+              </div>
+              <div style="font-size:11px;color:#4a4a46">{{ r.owner }}</div>
+              <div style="font-size:11px;color:#6f6f6a">{{ r.updated }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:10.5px;color:#6f6f6a;margin-top:10px">Read-only. Corrections and outcomes feed model calibration — no permanent ranking rules are created automatically.</div>
+      </div>
+      </sc-if>
+
+      <!-- LEVEL 2 — case timeline: one reverse-chronological record of all events -->
+      <sc-if value="{{ isAuditTimeline }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:880px">
+        <div onClick="{{ backToAuditList }}" style="font-size:11px;color:#6f6f6a;cursor:pointer;margin-bottom:12px">← Audit &amp; Review</div>
+
+        <!-- case header -->
+        <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="mono" style="font-size:12px;font-weight:700;color:#7a7a75">{{ auditCaseSel.ex }}</span>
+              <span style="{{ auditCaseSel.statusStyle }}"><span style="{{ auditCaseSel.statusDot }}"></span>{{ auditCaseSel.statusLabel }}</span>
+              <span style="font-size:10px;color:#7a7a75;background:#f0efec;border:1px solid #dcdbd7;border-radius:8px;padding:2px 7px">Read-only</span>
+            </div>
+            <div style="font-size:18px;font-weight:700;margin-top:6px">{{ auditCaseSel.title }}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:#6f6f6a">Owner · <span style="color:#212121;font-weight:600">{{ auditCaseSel.owner }}</span></div>
+            <div style="font-size:11px;color:#6f6f6a;margin-top:3px">{{ auditCaseSel.correctionsLabel }}</div>
+          </div>
+        </div>
+
+        <!-- DECISION REVIEW — reconstruct the AI ↔ human decision -->
+        <div style="background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid #e2e2df;background:#faf9f7">
+            <div style="display:flex;align-items:center;gap:9px">
+              <span style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;font-weight:700">Decision review</span>
+              <span style="font-size:13px;font-weight:700;color:#212121">{{ decisionReviewHeadline }}</span>
+            </div>
+            <span style="{{ drSignalStyle }}">{{ decisionReviewSignal }}</span>
+          </div>
+
+          <sc-if value="{{ decisionReviewCorrected }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:18px">
+            <!-- transition: AI → human → recalc → confirm -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
+              <div style="padding:13px 16px;border-right:1px solid #e2e2df;border-bottom:1px solid #e2e2df">
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:5px">AI initial rank</div>
+                <div class="mono" style="font-size:18px;font-weight:700;color:#8a97b8">{{ drAiInitial }}</div>
+              </div>
+              <div style="padding:13px 16px;border-bottom:1px solid #e2e2df">
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:5px">AI recalculated</div>
+                <div class="mono" style="display:flex;align-items:baseline;gap:8px;font-size:18px;font-weight:700"><span style="color:#8a97b8">{{ drRecalcFrom }}</span><span style="font-size:13px;color:#b0b0aa">→</span><span style="color:#2A5DE9">{{ drRecalcTo }}</span></div>
+              </div>
+              <div style="grid-column:1 / -1;padding:13px 16px">
+                <div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:5px">Human context added</div>
+                <div style="font-size:12.5px;color:#212121;line-height:1.5;font-style:italic">“{{ drHuman }}”</div>
+              </div>
+            </div>
+
+            <!-- why the rank changed -->
+            <div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#6f6f6a;margin-bottom:8px">Why the rank changed</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+              <sc-for list="{{ drWhy }}" as="w" hint-placeholder-count="4">
+                <div style="display:flex;gap:9px;font-size:12px;color:#3a3a37;line-height:1.5"><span style="color:#2A5DE9;flex:none">•</span>{{ w.text }}</div>
+              </sc-for>
+            </div>
+
+            <!-- human confirmed -->
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:#faf9f7;border:1px solid #e2e2df;border-radius:8px;margin-bottom:16px">
+              <span style="width:22px;height:22px;border-radius:50%;background:#212121;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none">✓</span>
+              <div style="flex:1"><div style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6a;margin-bottom:2px">Human confirmed</div><div style="font-size:12px;font-weight:600;color:#212121">{{ drConfirmedBy }}</div></div>
+              <span class="mono" style="font-size:11px;color:#6f6f6a">{{ drConfirmedAt }}</span>
+            </div>
+
+            <!-- outcome -->
+            <div style="border-left:3px solid #2CB380;background:#F3FAF6;border-radius:0 8px 8px 0;padding:13px 16px;margin-bottom:12px">
+              <div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#2f6b4f;font-weight:700;margin-bottom:5px">Outcome</div>
+              <div style="font-size:12.5px;color:#245040;line-height:1.5">{{ drOutcome }}</div>
+            </div>
+
+            <!-- assessment -->
+            <div style="padding:0 2px;margin-bottom:14px">
+              <div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#6f6f6a;font-weight:700;margin-bottom:5px">Assessment</div>
+              <div style="font-size:12.5px;color:#3a3a37;line-height:1.55">{{ drAssessment }}</div>
+            </div>
+
+            <!-- calibration -->
+            <div style="display:flex;align-items:flex-start;gap:9px;padding:11px 14px;border:1px dashed #e0e0dd;border-radius:8px">
+              <span style="font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#2A5DE9;background:#E3E9FE;border:1px solid #c4d2fb;border-radius:8px;padding:3px 7px;flex:none;margin-top:1px">Calibration</span>
+              <div style="font-size:11px;color:#6f6f6a;line-height:1.55">Recorded for model review. This correction does not automatically create a permanent ranking rule.</div>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ decisionReviewNoCorrection }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:18px">
+            <div style="font-size:12.5px;color:#3a3a37;line-height:1.55;margin-bottom:14px">No human correction was made on this case — the AI's assessment held through the operational window.</div>
+            <div style="border-left:3px solid #2CB380;background:#F3FAF6;border-radius:0 8px 8px 0;padding:13px 16px;margin-bottom:12px">
+              <div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#2f6b4f;font-weight:700;margin-bottom:5px">Outcome</div>
+              <div style="font-size:12.5px;color:#245040;line-height:1.5">{{ drOutcome }}</div>
+            </div>
+            <div style="padding:0 2px"><div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:#6f6f6a;font-weight:700;margin-bottom:5px">Assessment</div><div style="font-size:12.5px;color:#3a3a37;line-height:1.55">{{ drAssessment }}</div></div>
+          </div>
+          </sc-if>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+          <sc-for list="{{ auditFilterTabs }}" as="t" hint-placeholder-count="5">
+            <div onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</div>
+          </sc-for>
+          <span style="margin-left:auto;font-size:10.5px;color:#6f6f6a">{{ auditCaseSel.count }}</span>
+        </div>
+
+        <!-- timeline -->
+        <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:4px 18px">
+          <sc-for list="{{ auditCaseSel.events }}" as="e" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:58px 22px 1fr;gap:0;align-items:start;padding:13px 0;border-bottom:1px solid #efeeeb;{{ e.rowAccent }}">
+              <div class="mono" style="font-size:11px;color:#7a7a75;padding-top:1px">{{ e.time }}</div>
+              <div style="display:flex;justify-content:center;padding-top:3px"><span style="{{ e.dotStyle }}"></span></div>
+              <div>
+                <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                  <span style="{{ e.chipStyle }}">{{ e.typeLabel }}</span>
+                  <span style="{{ e.sumStyle }}">{{ e.sum }}</span>
+                </div>
+                <sc-if value="{{ e.hasWho }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size:10.5px;color:#6f6f6a;margin-top:3px">{{ e.who }}</div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:10.5px;color:#6f6f6a;margin-top:10px">A read-only reconstruction of the decision path as it unfolds.</div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: 'queue', overrideApplied: false, newRank: 6, reason: 'missing', context: '', selectedId: 'SHP-2841', decision: null, auditSel: 'OVR-2041', sortKey: 'priority', sortDir: 'asc', showDelegate: false, assigneeQuery: '', delegateAssignee: null, delegateNote: '', delegatedTo: null, auditTab: 'trail', auditOpen: null, auditFilter: 'all', extraDelegations: [], showAction: false, actionResponse: null, actionOwner: 'R. Mensah · Ops Manager', actionNote: '', actionConfirmed: false, showMonitor: false, monitorSignals: null, monitorCondition: 'When a watched signal changes', monitorConfirmed: false, dismissUnderRank: false, underRankPromoted: false, areaFilter: null, judgmentFilter: false };
+
+  renderVals() {
+    const s = this.state;
+    const screen = s.screen;
+
+    const sources = [
+      {name:'TMS', status:'Connected'},
+      {name:'OMS', status:'Connected'},
+      {name:'WMS', status:'Connected'},
+      {name:'Broker EDI', status:'Connected'},
+      {name:'Carrier Feed', status:'Connected'},
+      {name:'SLA Engine', status:'Unavailable'}
+    ].map(x=>({ name:x.name, status:x.status,
+      dotStyle:'width:6px;height:6px;border-radius:50%;display:inline-block;flex:none;background:'+(x.status==='Connected'?'#2CB380':'#6f6f6a'),
+      statusStyle:'font-size:9.5px;'+(x.status==='Connected'?'color:#1B7A55':'color:#6f6f6a') }));
+
+    // ---- operational area + owner per exception (shared with Monitor) ----
+    const EX_AREA = {
+      'SHP-2841':'Customs & Compliance', 'SHP-7712':'Port & Ocean', 'SHP-3390':'Cold Chain',
+      'LANE-EU-07':'Carrier Capacity', 'SHP-5127':'Customs & Compliance', 'SHP-6604':'Cold Chain',
+      'WH-DXB-02':'Warehouse & Cross-dock', 'SHP-8890':'Warehouse & Cross-dock', 'SHP-4471':'Cold Chain'
+    };
+    const OWNER_NAME = {
+      'SHP-2841':'R. Mensah', 'SHP-7712':'A. Osei', 'SHP-3390':'J. Park', 'LANE-EU-07':'A. Osei',
+      'SHP-5127':'R. Mensah', 'SHP-6604':'R. Mensah', 'WH-DXB-02':'J. Park', 'SHP-8890':'A. Osei', 'SHP-4471':'J. Park'
+    };
+    const EX_SHORT = {
+      'SHP-2841':'Customs hold — inspection', 'SHP-5127':'Documentation mismatch — HS code'
+    };
+    const ownerDisplay = (id, delegatedTo) => {
+      if (id==='SHP-2841' && delegatedTo) return String(delegatedTo).split(' · ')[0];
+      return OWNER_NAME[id] || '—';
+    };
+
+    // ---- global 5-screen navigation ----
+    const navBase='display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:2px;';
+    const navItems=[
+      {key:'queue',label:'Focus',n:'9'},
+      {key:'monitor',label:'Monitor',n:''},
+      {key:'audit',label:'Audit & Review',n:'31'}
+    ].map(it=>({ label:it.label, n:it.n, hasN: it.n!=='',
+      onClick:()=>this.setState({screen:it.key, auditOpen:null, ...(it.key==='queue'?{areaFilter:null, judgmentFilter:false}:{})}),
+      style: navBase+(screen===it.key?'background:#212121;color:#f2f2ef;':'background:transparent;color:#3a3a37;') }));
+
+    // ---- movement badge style helper ----
+    const badge = (dir) => {
+      if (dir === 'up')   return 'display:inline-flex;align-items:center;gap:4px;background:#212121;color:#fff;border-radius:8px;padding:3px 6px';
+      if (dir === 'down') return 'display:inline-flex;align-items:center;gap:4px;background:#fff;color:#6f6f6a;border:1px solid #e0e0dd;border-radius:8px;padding:2px 6px';
+      return 'display:inline-flex;align-items:center;gap:4px;background:#f0efec;color:#6f6f6a;border-radius:8px;padding:3px 6px';
+    };
+    const icon = (dir) => dir==='up'?'▲':dir==='down'?'▽':'—';
+    // ---- workflow status: color communicates WORKFLOW STATE only (never priority movement) ----
+    const STATUS = {
+      'Needs judgment':{bg:'#FEF4E8',fg:'#8F5A00',dot:'#F69014'},
+      'Needs Review':{bg:'#FEF4E8',fg:'#8F5A00',dot:'#F69014'},
+      'In Progress':{bg:'#E3E9FE',fg:'#2A5DE9',dot:'#2A5DE9'},
+      'Delegated':{bg:'#E5F1EA',fg:'#1B7A55',dot:'#2CB380'},
+      'Monitoring':{bg:'#ECEEF1',fg:'#55616F',dot:'#55616F'},
+      'Resolved':{bg:'#e8efe9',fg:'#4e7d63',dot:'#4e7d63'}
+    };
+    // 'Overridden' is a modifier badge on a row, not a top-level state
+    const overrideMod = 'font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#7a5c1c;background:#f2ead6;border:1px solid #e3d3ad;border-radius:8px;padding:2px 6px;';
+    const overrideBadge = 'display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.01em;border-radius:20px;padding:3px 9px 3px 8px;background:#f2ead6;color:#7a5c1c;';
+    const overrideBadgeDot = 'width:6px;height:6px;border-radius:50%;flex:none;background:#c69320;';
+    const chipStyle = (label) => { const c = STATUS[label]||STATUS['Monitoring']; return 'display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.01em;border-radius:20px;padding:3px 10px 3px 8px;background:'+c.bg+';color:'+c.fg; };
+    const dotStyle = (label) => { const c = STATUS[label]||STATUS['Monitoring']; return 'width:6px;height:6px;border-radius:50%;flex:none;background:'+c.dot; };
+
+    // ---- master exception data ----
+    const base = [
+      {rank:1,prev:8,id:'SHP-2841',issue:'Customs hold — inspection issued',
+        deltas:[
+          {g:'↑',t:'SLA risk',from:'34%',to:'88%',strong:true},
+          {g:'↑',t:'ETA slipped',val:'+18h',strong:true},
+          {g:'+',t:'12 affected orders now exposed',strong:true},
+          {g:'×',t:'Alternate capacity lost',strong:true}
+        ],
+        sla:'4h 10m',slaNote:'until deadline',slaHigh:true,downstream:'12 orders at risk',state:'Needs judgment',judge:true},
+      {rank:2,prev:2,id:'SHP-7712',issue:'Port congestion — vessel dwell rising',
+        deltas:[
+          {g:'↑',t:'Vessel dwell',from:'3h',to:'12h',strong:true},
+          {g:'↑',t:'Vessels queued',from:'1',to:'3'}
+        ],
+        sla:'9h 30m',slaNote:'until deadline',slaHigh:false,downstream:'6 orders at risk',state:'Monitoring',judge:false},
+      {rank:3,prev:1,id:'SHP-3390',issue:'Cold-chain temp excursion — recovering',
+        deltas:[
+          {g:'↓',t:'Temp',from:'−4°C',to:'in range'},
+          {g:'●',t:'Sensor',from:'offline',to:'restored'}
+        ],
+        sla:'18h',slaNote:'buffer',slaHigh:false,downstream:'2 orders at risk',state:'In Progress',judge:false},
+      {rank:4,prev:4,id:'LANE-EU-07',issue:'Carrier capacity shortfall',
+        deltas:[
+          {g:'↑',t:'Bookings rejected',from:'0',to:'5',strong:true},
+          {g:'↑',t:'Spot rate',val:'+38%'}
+        ],
+        sla:'1d 6h',slaNote:'planning window',slaHigh:false,downstream:'9 orders · 2 priority customers',state:'Delegated',judge:false},
+      {rank:5,prev:9,id:'SHP-5127',issue:'Documentation mismatch — HS code',
+        deltas:[
+          {g:'↑',t:'HS code',from:'valid',to:'flagged',strong:true},
+          {g:'×',t:'Clearance',from:'open',to:'blocked',strong:true}
+        ],
+        sla:'5h 40m',slaNote:'until deadline',slaHigh:false,downstream:'3 orders at risk',state:'Needs judgment',judge:true},
+      {rank:6,prev:3,id:'SHP-6604',issue:'Weather reroute — storm cleared',
+        deltas:[
+          {g:'↓',t:'ETA delay',from:'+30h',to:'recovered'},
+          {g:'●',t:'Route',from:'blocked',to:'restored'}
+        ],
+        sla:'22h',slaNote:'buffer',slaHigh:false,downstream:'1 delivery route affected',state:'Monitoring',judge:false},
+      {rank:7,prev:6,id:'WH-DXB-02',issue:'Warehouse labor gap — shift short',
+        deltas:[
+          {g:'↓',t:'Staffing',from:'full',to:'−4 heads'},
+          {g:'↑',t:'Backlog',from:'20u',to:'60u'}
+        ],
+        sla:'11h',slaNote:'until deadline',slaHigh:false,downstream:'4 orders · 1 warehouse',state:'Needs judgment',judge:true},
+      {rank:8,prev:5,id:'SHP-8890',issue:'Dock scheduling conflict',
+        deltas:[
+          {g:'↓',t:'Dock slot',from:'single',to:'double-booked'}
+        ],
+        sla:'1d 2h',slaNote:'planning window',slaHigh:false,downstream:'2 orders at risk',state:'Monitoring',judge:false},
+      {rank:9,prev:9,id:'SHP-4471',issue:'Reefer genset fault — pharma export',
+        deltas:[
+          {g:'⚠',t:'SLA risk unscored — SLA Engine offline',strong:true},
+          {g:'↑',t:'Reefer temp drift',from:'2°C',to:'8°C'}
+        ],
+        sla:'2d 6h',slaNote:'stale estimate',slaHigh:false,downstream:'7 orders · 1 priority customer',state:'Monitoring',judge:false}
+    ];
+
+    // ---- sortable metrics + decision-state grouping order ----
+    const sortMeta = {
+      'SHP-2841':{min:250,aff:12}, 'SHP-7712':{min:570,aff:6}, 'SHP-3390':{min:1080,aff:2},
+      'LANE-EU-07':{min:1800,aff:9}, 'SHP-5127':{min:340,aff:3}, 'SHP-6604':{min:1320,aff:1},
+      'WH-DXB-02':{min:660,aff:4}, 'SHP-8890':{min:1560,aff:2}, 'SHP-4471':{min:3060,aff:7}
+    };
+    const stateOrder = {'Needs judgment':0,'In Progress':1,'Delegated':2,'Monitoring':3,'Resolved':4};
+    const effState = (e) => (e.id==='SHP-2841' && s.decision) ? s.decision : e.state;
+    const sortKey = s.sortKey || 'priority';
+    const sortDir = s.sortDir || 'asc';
+    // ---- FALSE-SUPPRESSION GUARDRAIL: promotion re-ranks the under-ranked exception ----
+    const UNDERRANK_ID = 'SHP-4471';
+    let work = base.map(x=>({...x}));
+    if (s.underRankPromoted) {
+      work = work.map(x=>{
+        if (x.id===UNDERRANK_ID) return {...x, rank:3, prev:9, state:'Monitoring', judge:false, slaHigh:true, humanReviewed:true};
+        if (x.rank>=3 && x.rank<=8) return {...x, rank:x.rank+1, prev:x.rank+1};
+        return x;
+      });
+    }
+    const sorted = [...work].sort((a,b) => {
+      let av, bv;
+      if (sortKey==='timerisk') { av=sortMeta[a.id].min; bv=sortMeta[b.id].min; }
+      else if (sortKey==='affected') { av=sortMeta[a.id].aff; bv=sortMeta[b.id].aff; }
+      else if (sortKey==='state') { av=stateOrder[effState(a)]; bv=stateOrder[effState(b)]; }
+      else { av=a.rank; bv=b.rank; }
+      if (av===bv) return a.rank - b.rank; // tie-break by live priority
+      return sortDir==='asc' ? av-bv : bv-av;
+    });
+
+    // header cell builder: click to sort, re-click to reverse
+    const sortDefaults = { priority:'asc', timerisk:'asc', affected:'desc', state:'asc' };
+    const setSort = (key) => this.setState(st => st.sortKey===key
+      ? { sortDir: st.sortDir==='asc'?'desc':'asc' }
+      : { sortKey:key, sortDir: sortDefaults[key] });
+    const hdr = (key,label) => {
+      const active = sortKey===key;
+      const arrow = active ? (sortDir==='asc'?' ↑':' ↓') : ' ↕';
+      return {
+        label, arrow,
+        onClick: () => setSort(key),
+        style: 'cursor:pointer;user-select:none;display:flex;align-items:center;gap:3px;border-radius:8px;padding:3px 5px;'+(active?'color:#212121;font-weight:700;':'color:#6f6f6a;'),
+        arrowStyle: 'font-size:10px;'+(active?'opacity:1;':'opacity:.4;')
+      };
+    };
+    const headers = {
+      priority: hdr('priority','Priority'),
+      timerisk: hdr('timerisk','Risk in'),
+      affected: hdr('affected','Impact'),
+      state: hdr('state','Decision state')
+    };
+
+    // ---- prioritization dimensions: Urgency / Operational impact / Fallback capacity ----
+    // organizes the existing changed-signals around the model's ranking dimensions (no AI narrative)
+    // Human-readable priority explanation: each operational signal on its own line,
+    // grouped under Time risk / Operational impact / Fallback. No AI score, no inline mashups.
+    const DIM = {
+      'SHP-2841':{
+        timeRisk:[{text:'SLA risk increased ',from:'42%',to:'88%',strong:true},{text:'ETA delayed by 18h'}],
+        impact:'12 orders now at risk',
+        fbLabel:'No fallback',fbHard:true,
+        fallback:[{text:'Alternate capacity lost'},{from:'2 options',to:'none'}]
+      },
+      'SHP-7712':{
+        timeRisk:[{text:'Vessel dwell rising ',from:'3h',to:'12h'}],
+        impact:'6 orders at risk',
+        fbLabel:'Fallback',fbHard:false,
+        fallback:[{text:'Reroute pending',muted:true}]
+      },
+      'SHP-3390':{
+        timeRisk:[{text:'Temperature recovered',muted:true}],
+        impact:'2 orders at risk',
+        fbLabel:'Fallback',fbHard:false,
+        fallback:[{text:'Sensor restored',muted:true}]
+      },
+      'LANE-EU-07':{
+        timeRisk:[{text:'Spot rate up +38%'}],
+        impact:'9 orders · 2 priority customers',
+        fbLabel:'No fallback',fbHard:true,
+        fallback:[{text:'No carrier capacity'},{text:'5 bookings rejected'}]
+      },
+      'SHP-5127':{
+        timeRisk:[{text:'Clearance blocked'}],
+        impact:'3 orders at risk',
+        fbLabel:'No fallback',fbHard:true,
+        fallback:[{text:'No fallback available'}]
+      },
+      'SHP-6604':{
+        timeRisk:[{text:'ETA recovered',muted:true}],
+        impact:'1 delivery route affected',
+        fbLabel:'Fallback',fbHard:false,
+        fallback:[{text:'Route restored',muted:true}]
+      },
+      'WH-DXB-02':{
+        timeRisk:[{text:'Backlog rising ',from:'20u',to:'60u'}],
+        impact:'4 orders · 1 warehouse',
+        fbLabel:'Fallback',fbHard:false,
+        fallback:[{text:'Staffing −4 heads'}]
+      },
+      'SHP-8890':{
+        timeRisk:[{text:'Slot double-booked'}],
+        impact:'2 orders at risk',
+        fbLabel:'Fallback',fbHard:false,
+        fallback:[{text:'—',muted:true}]
+      }
+    };
+    const mkLine = (l) => ({
+      text: l.text || '',
+      hasDelta: l.from!==undefined && l.to!==undefined,
+      from: l.from || '', to: l.to || '',
+      style: 'font-size:11.5px;line-height:1.5;'+(l.strong?'color:#212121;font-weight:700;':(l.muted?'color:#6f6f6a;':'color:#3a3a37;'))
+    });
+
+    // Queue previews: ONE short phrase per case (detail explains the rest)
+    const WHY = {
+      'SHP-2841':{pre:'SLA risk ',from:'42%',to:'88%'},
+      'SHP-7712':{pre:'Vessel dwell ',from:'3h',to:'12h'},
+      'SHP-3390':{pre:'Temp recovered — risk easing'},
+      'LANE-EU-07':{pre:'Carrier capacity lost'},
+      'SHP-5127':{pre:'Customs clearance blocked'},
+      'SHP-6604':{pre:'Weather cleared — ETA recovered'},
+      'WH-DXB-02':{pre:'Backlog ',from:'20u',to:'60u'},
+      'SHP-8890':{pre:'Dock slot double-booked'},
+      'SHP-4471':{pre: s.underRankPromoted ? 'Stale SLA signal confirmed · temp risk rising' : 'SLA risk unscored — source stale'}
+    };
+    const IMPACT_SHORT = {
+      'SHP-2841':'12 orders','SHP-7712':'6 orders','SHP-3390':'2 orders','LANE-EU-07':'9 orders',
+      'SHP-5127':'3 orders','SHP-6604':'1 route','WH-DXB-02':'4 orders','SHP-8890':'2 orders','SHP-4471':'7 orders'
+    };
+
+    const filteredSorted = s.judgmentFilter
+      ? sorted.filter(e => effState(e)==='Needs judgment')
+      : s.areaFilter
+        ? sorted.filter(e => EX_AREA[e.id]===s.areaFilter)
+        : sorted;
+    const judgmentCount = work.filter(e => effState(e)==='Needs judgment').length;
+
+    const queue = filteredSorted.map((e) => {
+      const dir = e.prev < e.rank ? 'down' : e.prev > e.rank ? 'up' : 'same';
+      const moveText = dir==='same' ? '—' : 'was #'+e.prev;
+      const gap = Math.abs(e.prev - e.rank);
+      const highMove = gap >= 3;
+      const deltas = e.deltas.map((d)=>({
+        glyph:d.g, label:d.t,
+        hasPair: d.from!==undefined && d.to!==undefined,
+        from:d.from||'', to:d.to||'',
+        hasVal: d.val!==undefined, val:d.val||'',
+        glyphStyle:'font-family:ui-monospace,Menlo,monospace;font-size:11px;width:12px;flex:none;'+(d.strong?'color:#212121;font-weight:700;':'color:#6f6f6a;'),
+        labelStyle:'font-size:11.5px;line-height:1.35;'+(d.strong?'color:#212121;font-weight:600;':'color:#6f6f6a;')
+      }));
+      const needsJudgmentRow = effState(e)==='Needs judgment';
+      // Act / Delegate / Monitor recorded on the open exception update its decision state
+      const est = (e.id==='SHP-2841' && s.decision) ? s.decision : e.state;
+      const ejudge = (e.id==='SHP-2841' && s.decision) ? false : e.judge;
+      // owner changes when the open shipment is delegated
+      const eownerName = ownerDisplay(e.id, s.delegatedTo);
+      return {
+        area: EX_AREA[e.id]||'—',
+        ownerName: eownerName,
+        owner: eownerName,
+        rankStr: String(e.rank).padStart(2,'0'),
+        id: e.id, issue: e.issue,
+        deltas, highMove,
+        // priority movement = strong grayscale typography, prev -> current, directional
+        moveFrom:'#'+e.prev, moveTo:'#'+e.rank,
+        moveDelta: dir==='same' ? 'no change' : (dir==='up'?'↑':'↓')+gap,
+        moveDeltaStyle: dir==='same' ? 'font-size:10px;font-weight:600;color:#6f6f6a' : 'font-size:12px;font-weight:700;color:#212121',
+        // compact movement pill for the queue Priority column (green up / red down / gray same)
+        moveTag: dir==='same' ? '–' : (dir==='up'?'↑':'↓')+gap,
+        moveTagStyle: 'display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;padding:2px 6px;border-radius:8px;min-width:26px;'+
+          (dir==='up'?'color:#1B7A55;background:#E5F1EA;':dir==='down'?'color:#E24343;background:#FCECEC;':'color:#6f6f6a;background:#efeeeb;'),
+        // one-phrase "what changed" with optional before -> after
+        whyPre: (WHY[e.id]||{}).pre, whyHasDelta: !!(WHY[e.id]||{}).from,
+        whyFrom: (WHY[e.id]||{}).from||'', whyTo: (WHY[e.id]||{}).to||'',
+        impactShort: IMPACT_SHORT[e.id]||e.downstream,
+        riskColor: e.slaHigh ? 'color:#212121' : 'color:#4a4a46',
+        evidenceStyle: (highMove
+          ? 'border-left:2px solid #212121;padding-left:11px;'
+          : 'padding-left:13px;border-left:2px solid #eceae6;')+'display:flex;flex-direction:column;gap:4px',
+        sla: e.sla, slaNote: e.slaNote,
+        slaStyle: 'font-size:13px;font-weight:700;'+(e.slaHigh?'color:#212121':'color:#4a4a46'),
+        downstream: e.downstream,
+        // dimension-grouped evidence: each signal on its own line
+        isTop: e.rank===1, notTop: e.rank!==1,
+        timeRiskLines: ((DIM[e.id]||{}).timeRisk||[]).map(mkLine),
+        impactText: (DIM[e.id]||{}).impact,
+        fbLabel: (DIM[e.id]||{}).fbLabel,
+        fbLabelStyle: 'font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;margin:8px 0 3px;'+((DIM[e.id]||{}).fbHard?'color:#212121;':'color:#6f6f6a;'),
+        fallbackLines: ((DIM[e.id]||{}).fallback||[]).map(mkLine),
+        stateLabel: est, stateStyle: chipStyle(est), stateDot: dotStyle(est), needsJudgment: ejudge,
+        rowStyle: 'border-bottom:1px solid #efeeeb;cursor:pointer;background:#fff;'+(needsJudgmentRow?'box-shadow:inset 3px 0 0 #F69014;':''),
+        rowHover: 'background:#f5f4f1;'+(needsJudgmentRow?'box-shadow:inset 3px 0 0 #F69014;':''),
+        chevronStyle: 'font-size:18px;font-weight:700;line-height:1;color:#c2c2bc;',
+        underRanked: e.id===UNDERRANK_ID && !s.underRankPromoted,
+        humanReviewed: !!e.humanReviewed,
+        open: () => (e.id===UNDERRANK_ID && !s.underRankPromoted)
+          ? this.setState({ screen:'reviewDetail', recalc:'review', slaJudge:null, tempJudge:null, slaReason:null, tempReason:null })
+          : this.setState({ selectedId:e.id, screen: 'detail' })
+      };
+    });
+
+    // ---- detail data ----
+    const ledger = [
+      {time:'14:22',signal:'Customs status',was:'Cleared',now:'Inspection hold',source:'Broker EDI'},
+      {time:'14:05',signal:'ETA',was:'08:10 Tue',now:'02:10 Wed (+18h)',source:'Carrier telemetry'},
+      {time:'13:58',signal:'SLA risk',was:'42%',now:'88%',source:'SLA engine'},
+      {time:'13:40',signal:'Linked orders',was:'4 orders',now:'12 orders',source:'OMS'},
+      {time:'13:30',signal:'Alternate capacity',was:'2 options',now:'None available',source:'TMS'}
+    ];
+    const factors = [
+      {label:'SLA risk',value:'88%'},
+      {label:'ETA slip',value:'+18h'},
+      {label:'Affected orders',value:'12'},
+      {label:'Alternate capacity',value:'None'}
+    ];
+
+    // ---- override controls ----
+    // ---- override case context (which case this override was opened from) ----
+    const ovCase = s.overrideCase==='SHP-4471'
+      ? { line:'SHP-4471 · Reefer genset fault', aiRank:'#9', ship:'SHP-4471', rankLine:'#9 (unverified SLA)', ranks:[2,3,5,7],
+          context:'SLA risk signal is stale (3h). Genset fault with rising temperature on a pharma export — real breach risk is higher than the #9 score. Promoting for active tracking.' }
+      : { line:'SHP-2841 · Customs hold', aiRank:'#1', ship:'SHP-2841', rankLine:'#1 (prev #8)', ranks:[2,4,6,8],
+          context:'Local buffer stock confirmed at destination DC (4-day cover). Dependent orders are not at risk — treat as clearance-tracking, not a fire.' };
+
+    const rankOptions = ovCase.ranks.map((n) => ({
+      label:'#'+n, pick:()=>this.setState({newRank:n}),
+      style:'cursor:pointer;font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:700;padding:8px 12px;border-radius:8px;'+
+        (s.newRank===n?'background:#212121;color:#fff;border:1px solid #212121;':'background:#fff;color:#4a4a46;border:1px solid #dcdbd7;'),
+      styleHover: s.newRank===n?'background:#000;':'background:#f1f0ec;border-color:#a9a9a3;color:#212121;'
+    }));
+    const reasons = [
+      {key:'missing',label:'Missing operational context'},
+      {key:'outdated',label:'Signal is outdated'},
+      {key:'incorrect',label:'Signal is incorrect'},
+      {key:'over',label:'Downstream impact is overstated'},
+      {key:'under',label:'Downstream impact is understated'},
+      {key:'altcap',label:'Alternate capacity confirmed'},
+      {key:'deprisk',label:'Dependency risk changed'},
+      {key:'other',label:'Other'}
+    ];
+    const reasonOptions = reasons.map((r)=>({
+      label:r.label, pick:()=>this.setState({reason:r.key}),
+      style:'cursor:pointer;font-size:11.5px;padding:8px 12px;border-radius:8px;'+
+        (s.reason===r.key?'background:#212121;color:#fff;border:1px solid #212121;':'background:#fff;color:#3a3a37;border:1px solid #dcdbd7;'),
+      styleHover: s.reason===r.key?'background:#000;':'background:#f1f0ec;border-color:#a9a9a3;color:#212121;'
+    }));
+    const contextEcho = ovCase.context;
+
+    // ---- SHP-4471 reprioritize (AI recalculation) reason chips ----
+    const reprioReason = s.reprioReason || 'outdated';
+    const reprioReasonOptions = reasons.map((r)=>({
+      label:r.label, pick:()=>this.setState({reprioReason:r.key}),
+      style:'cursor:pointer;font-size:11.5px;padding:8px 12px;border-radius:8px;'+
+        (reprioReason===r.key?'background:#212121;color:#fff;border:1px solid #212121;':'background:#fff;color:#3a3a37;border:1px solid #dcdbd7;'),
+      styleHover: reprioReason===r.key?'background:#000;':'background:#f1f0ec;border-color:#a9a9a3;color:#212121;'
+    }));
+    const recalc = s.recalc || 'idle';
+    const slaJudge = s.slaJudge || null;   // null | 'ok' | 'not'
+    const tempJudge = s.tempJudge || null;
+    const slaReason = s.slaReason || null;
+    const tempReason = s.tempReason || null;
+    const judgeBtn = (selected) => 'cursor:pointer;font-size:10.5px;font-weight:600;padding:6px 12px;border-radius:8px;'+(selected?'background:#ecebe8;color:#212121;border:1px solid #a9a9a3;':'background:#fff;color:#4a4a46;border:1px solid #e0e0dd;');
+    const judgeBtnHover = (selected) => selected?'background:#e4e3df;border-color:#a9a9a3;':'background:#f1f0ec;border-color:#a9a9a3;color:#212121;';
+    const judgeReasons = [{key:'outdated',label:'Outdated'},{key:'wrong',label:'Wrong value'},{key:'over',label:'Overstated'},{key:'under',label:'Understated'},{key:'other',label:'Other'}];
+    const reasonChip = (active) => 'cursor:pointer;font-size:10px;font-weight:600;padding:5px 11px;border-radius:20px;'+(active?'background:#212121;color:#fff;border:1px solid #212121;':'background:#fff;color:#6f6f6a;border:1px solid #dcdbd7;');
+    const reasonChipHover = (active) => active?'background:#000;':'background:#f1f0ec;border-color:#a9a9a3;color:#212121;';
+    const mkReasons = (sel, set) => judgeReasons.map(r=>({ label:r.label, pick:()=>this.setState(set(r.key)), style:reasonChip(sel===r.key), styleHover:reasonChipHover(sel===r.key) }));
+    const judged = (j, reason) => j==='ok' || (j==='not' && !!reason);
+    const recalcReady = judged(slaJudge, slaReason) && judged(tempJudge, tempReason);
+
+    // ---- recovered queue (after override) ----
+    const recovered = [
+      {rank:1,prev:2,id:'SHP-7712',issue:'Port congestion',effect:'Promoted — no longer blocked behind SHP-2841. Now nearest real SLA breach.',state:'Needs judgment'},
+      {rank:2,prev:3,id:'SHP-3390',issue:'Cold-chain temp excursion',effect:'Shifted up one as SHP-2841 dropped.',state:'In Progress'},
+      {rank:3,prev:4,id:'LANE-EU-07',issue:'Carrier capacity shortfall',effect:'Shifted up one.',state:'Delegated'},
+      {rank:4,prev:5,id:'SHP-5127',issue:'Documentation mismatch',effect:'Shifted up one.',state:'Needs judgment'},
+      {rank:5,prev:6,id:'SHP-6604',issue:'Weather reroute',effect:'Shifted up one.',state:'Monitoring'},
+      {rank:6,prev:1,id:'SHP-2841',issue:'Customs hold',effect:'Your override — buffer stock removes risk to affected operations. Kept visible for clearance tracking.',state:'Monitoring',overridden:true},
+      {rank:7,prev:7,id:'WH-DXB-02',issue:'Warehouse labor gap',effect:'No change — independent of this correction.',state:'Needs judgment'},
+      {rank:8,prev:8,id:'SHP-8890',issue:'Dock scheduling conflict',effect:'No change.',state:'Monitoring'}
+    ];
+    const recoveredQueue = recovered.map((e)=>{
+      const dir = e.prev < e.rank ? 'down' : e.prev > e.rank ? 'up' : 'same';
+      return {
+        rankStr:String(e.rank).padStart(2,'0'),
+        moveTypo: dir==='same' ? 'no change' : (dir==='up'?'↑ ':'↓ ')+'was #'+e.prev,
+        moveTypoStyle: 'font-size:10px;font-weight:600;'+(dir==='same'?'color:#6f6f6a':'color:#4a4a46'),
+        id:e.id, issue:e.issue, effect:e.effect,
+        stateLabel:e.state, stateStyle:chipStyle(e.state), stateDot:dotStyle(e.state),
+        overridden: e.overridden===true, overrideModStyle: overrideMod,
+        rowBg: e.id==='SHP-2841' ? 'background:#f6f5f2' : (e.id==='SHP-7712' ? 'background:#faf9f7' : 'background:#fff')
+      };
+    });
+
+    // ---- Audit & Review data (screen 5) : immutable override records + evidence ----
+    const auditData = [
+      {id:'OVR-2041', ex:'SHP-2841', issue:'Customs hold — inspection', mgr:'R. Mensah', when:'Today · 14:26', reason:'Local buffer stock confirmed', tags:['Alternate capacity','Dependency not at risk'], before:1, after:6, rev:'Reversible', recalc:'Yes — 6 shipments changed rank', source:'WMS inventory validated 14:22 UTC', recordedAt:'14:26 UTC', context:'Local buffer stock confirmed at destination DC (4-day cover). Dependent orders are not at risk.', signals:[{sig:'SLA risk',prev:'34%',cur:'88%'},{sig:'ETA',prev:'08:10 Tue',cur:'+18h'},{sig:'Downstream orders',prev:'4',cur:'12'},{sig:'Alternate capacity',prev:'2 options',cur:'None'}]},
+      {id:'OVR-2038', ex:'SHP-5127', issue:'Documentation mismatch', mgr:'R. Mensah', when:'Today · 11:02', reason:'Data quality issue', tags:['Signal error'], before:5, after:7, rev:'Reversible', recalc:'Yes — 3 shipments changed rank', source:'Broker EDI re-validated 11:00 UTC', recordedAt:'11:02 UTC', context:'HS code re-validated with broker; the flag was stale.', signals:[{sig:'HS code',prev:'valid',cur:'flagged'},{sig:'Clearance',prev:'open',cur:'blocked'},{sig:'Downstream orders',prev:'5',cur:'3'}]},
+      {id:'OVR-2035', ex:'LANE-EU-07', issue:'Carrier capacity shortfall', mgr:'A. Osei', when:'Yesterday · 16:40', reason:'Alternate capacity confirmed', tags:['Routing arranged'], before:4, after:6, rev:'Reversible', recalc:'Yes — 4 shipments changed rank', source:'TMS booking confirmed 16:35 UTC', recordedAt:'16:40 UTC', context:'Alternate carrier arranged and confirmed operationally.', signals:[{sig:'Bookings rejected',prev:'0',cur:'5'},{sig:'Spot rate',prev:'base',cur:'+38%'}]},
+      {id:'OVR-2031', ex:'SHP-6604', issue:'Weather reroute', mgr:'R. Mensah', when:'Yesterday · 09:15', reason:'Dependency not at risk', tags:[], before:3, after:8, rev:'Undo expired', recalc:'Yes — 5 shipments changed rank', source:'OMS dependency check 09:10 UTC', recordedAt:'09:15 UTC', context:'Dependent order verified unaffected by the delay.', signals:[{sig:'ETA delay',prev:'+30h',cur:'recovered'},{sig:'Route',prev:'blocked',cur:'restored'}]},
+      {id:'OVR-2028', ex:'WH-DXB-02', issue:'Warehouse labor gap', mgr:'J. Park', when:'2 days ago', reason:'Downstream impact overstated', tags:[], before:6, after:9, rev:'Reversible', recalc:'Yes — 2 shipments changed rank', source:'WMS pick schedule 2d ago', recordedAt:'2d ago', context:'Impact count included non-critical orders.', signals:[{sig:'Staffing',prev:'full',cur:'−4 heads'},{sig:'Backlog',prev:'20u',cur:'60u'}]},
+      {id:'OVR-2024', ex:'SHP-7712', issue:'Port congestion', mgr:'A. Osei', when:'3 days ago', reason:'ETA data inaccurate', tags:['Data quality issue'], before:2, after:5, rev:'Undo expired', recalc:'Yes — 3 shipments changed rank', source:'Carrier telemetry 3d ago', recordedAt:'3d ago', context:'ETA feed latency corrected; dwell was overstated.', signals:[{sig:'Vessel dwell',prev:'3h',cur:'12h'},{sig:'Vessels queued',prev:'1',cur:'3'}]}
+    ];
+    const revChip = (rev)=> rev==='Reversible'
+      ? 'font-size:9.5px;font-weight:600;color:#1B7A55;background:#E5F1EA;border-radius:20px;padding:3px 9px 3px 7px;display:inline-flex;align-items:center;gap:5px'
+      : 'font-size:9.5px;font-weight:600;color:#7a5c1c;background:#f2ead6;border-radius:20px;padding:3px 9px 3px 7px;display:inline-flex;align-items:center;gap:5px';
+    const revDot = (rev)=> 'width:5px;height:5px;border-radius:50%;flex:none;background:'+(rev==='Reversible'?'#2CB380':'#c69320');
+    const auditRows = auditData.map(r=>{
+      const dir = r.after < r.before ? 'up' : 'down';
+      const sel = r.id === s.auditSel;
+      return {
+        id:r.id, ex:r.ex, issue:r.issue, mgr:r.mgr, when:r.when, reason:r.reason,
+        before:'#'+r.before, after:'#'+r.after, moveTypo:(dir==='up'?'↑':'↓')+Math.abs(r.before-r.after),
+        revLabel:r.rev, revStyle:revChip(r.rev), revDotStyle:revDot(r.rev),
+        rowStyle:'display:grid;grid-template-columns:92px 1.1fr 1fr 104px 100px;gap:0;padding:11px 14px;border-bottom:1px solid #efeeeb;cursor:pointer;align-items:center;'+(sel?'background:#edf1f7;box-shadow:inset 3px 0 0 #2f6fb0;':'background:#fff;'),
+        rowHover: sel?'background:#e7edf6;box-shadow:inset 3px 0 0 #2f6fb0;':'background:#f5f4f1;',
+        pick: ()=> this.setState({ auditSel:r.id })
+      };
+    });
+    const asel = auditData.find(r=>r.id===s.auditSel) || auditData[0];
+    const aselDir = asel.after < asel.before ? 'up' : 'down';
+    const auditSel = {
+      id:asel.id, ex:asel.ex, issue:asel.issue, mgr:asel.mgr, when:asel.when, reason:asel.reason,
+      before:'#'+asel.before, after:'#'+asel.after, moveTypo:(aselDir==='up'?'↑':'↓')+Math.abs(asel.before-asel.after),
+      context:asel.context, recalc:asel.recalc, rev:asel.rev, source:asel.source, recordedAt:asel.recordedAt,
+      revStyle:revChip(asel.rev), revDotStyle:revDot(asel.rev),
+      signals:asel.signals, tags:asel.tags, hasTags: asel.tags.length>0,
+      timeline:[
+        {t:'submit', ev:'Correction submitted — '+asel.mgr, sub:'Reason: '+asel.reason},
+        {t:'ctx', ev:'Optional context recorded', sub:asel.context},
+        {t:'recalc', ev:'Recalculation triggered', sub:asel.recalc},
+        {t:'final', ev:'Audit record finalized', sub:asel.id+' · '+asel.rev}
+      ]
+    };
+
+    // ---- Audit & Review : case-driven decision reconstruction timeline ----
+    // Event taxonomy: SIGNAL · SYSTEM · AI PRIORITY · HUMAN DECISION · OUTCOME
+    const EV = {
+      'SIGNAL':{fg:'#6f6f6a',bg:'#f0efec',dot:'#b0b0aa',label:'Signal'},
+      'SYSTEM':{fg:'#55616f',bg:'#eceef1',dot:'#8a97a5',label:'System'},
+      'AI PRIORITY':{fg:'#4a5568',bg:'#e8ebf0',dot:'#8a97b8',label:'AI Priority'},
+      'HUMAN DECISION':{fg:'#212121',bg:'#f2f2ef',dot:'#212121',label:'Human Decision'},
+      'OUTCOME':{fg:'#1B7A55',bg:'#E5F1EA',dot:'#2CB380',label:'Outcome'}
+    };
+    const isPriorityCorrection = (e) => e.type==='HUMAN DECISION' && /Priority corrected/.test(e.sum);
+    const humanCorrectionCount = (evs) => evs.filter(isPriorityCorrection).length;
+    const mapTimelineEvent = (e) => {
+      const meta = EV[e.type] || EV.SIGNAL;
+      const isHuman = e.type==='HUMAN DECISION';
+      const isOutcome = e.type==='OUTCOME';
+      return {
+        time:e.time, type:e.type, typeLabel:meta.label, sum:e.sum, who:e.who||'', hasWho:!!e.who,
+        chipStyle:'display:inline-flex;align-items:center;font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:8px;padding:2px 6px;flex:none;'+
+          (isHuman
+            ? 'color:'+meta.fg+';background:'+meta.bg+';border:1px solid #212121;'
+            : 'color:'+meta.fg+';background:'+meta.bg+';'),
+        dotStyle:'width:'+(isHuman?'11':'9')+'px;height:'+(isHuman?'11':'9')+'px;border-radius:50%;flex:none;background:'+meta.dot+';'+(isHuman?'box-shadow:0 0 0 2px #fff,0 0 0 3px #212121;':''),
+        sumStyle:(isHuman?'font-size:13px;font-weight:700;color:#212121;line-height:1.4;':isOutcome?'font-size:12.5px;font-weight:600;color:#1B7A55;line-height:1.4;':'font-size:12.5px;color:#212121;line-height:1.4;'),
+        rowAccent: isHuman ? 'border-left:3px solid #212121;padding-left:14px;margin-left:-3px;background:#faf9f7;' : ''
+      };
+    };
+    const auditCases = [
+      { ex:'SHP-4471', title:'Reefer genset fault — pharma export', owner:'J. Park', status: s.underRankPromoted?'Monitoring':'Needs Review', updated: s.underRankPromoted?'2m ago':'6m ago', last: s.underRankPromoted?'Priority corrected':'Signal',
+        events:[
+          ...(s.underRankPromoted ? [
+            {time:'14:34', type:'SYSTEM', sum:'Recalculation — 7 exceptions changed rank'},
+            {time:'14:33', type:'HUMAN DECISION', sum:'Priority corrected #9 → #3 — “Stale SLA signal confirmed · temp risk rising · 1 VIP order”', who:'R. Mensah'}
+          ] : []),
+          {time:'14:18', type:'AI PRIORITY', sum:'Ranked #9 — SLA risk unscored'},
+          {time:'14:18', type:'SYSTEM', sum:'SLA Engine unavailable — risk score stale, may be understated'},
+          {time:'08:40', type:'SIGNAL', sum:'Reefer genset fault reported'}
+        ]},
+      { ex:'SHP-2841', title:'Customs hold — inspection', owner:'R. Mensah', status:'In Progress', updated:'2m ago', last:'Take Action',
+        events:[
+          {time:'20:26', type:'OUTCOME', sum:'Clearance completed 6h later, no SLA breach.'},
+          {time:'14:26', type:'SYSTEM', sum:'Recalculation — 6 exceptions changed rank'},
+          {time:'14:26', type:'HUMAN DECISION', sum:'Priority corrected #1 → #6 — “Local buffer stock confirmed”', who:'R. Mensah'},
+          {time:'14:22', type:'AI PRIORITY', sum:'Ranked #1 — SLA risk 88%, inspection hold'},
+          {time:'14:22', type:'SIGNAL', sum:'Customs status → Inspection hold'},
+          {time:'13:58', type:'SIGNAL', sum:'SLA risk 42% → 88%'}
+        ]},
+      { ex:'SHP-7712', title:'Port congestion — vessel dwell', owner:'A. Osei', status:'Monitoring', updated:'22m ago', last:'Monitor Changes',
+        events:[
+          {time:'13:40', type:'HUMAN DECISION', sum:'Monitor started — “Watch dwell and berth ETA”', who:'A. Osei'},
+          {time:'13:12', type:'SYSTEM', sum:'Recalculation — 3 exceptions changed rank'},
+          {time:'13:05', type:'SIGNAL', sum:'Vessel dwell 3h → 12h'},
+          {time:'12:40', type:'SIGNAL', sum:'Vessels queued 1 → 3'}
+        ]},
+      { ex:'SHP-5127', title:'Documentation mismatch — HS code', owner:'R. Mensah', status:'Needs Review', updated:'1h ago', last:'Override Priority',
+        events:[
+          {time:'11:02', type:'HUMAN DECISION', sum:'Priority corrected #5 → #7 — “HS code re-validated, flag was stale”', who:'R. Mensah'},
+          {time:'11:02', type:'SYSTEM', sum:'Recalculation — 3 exceptions changed rank'},
+          {time:'10:20', type:'SIGNAL', sum:'Clearance status open → blocked'},
+          {time:'10:18', type:'SIGNAL', sum:'HS code valid → flagged'}
+        ]},
+      { ex:'LANE-EU-07', title:'Carrier capacity shortfall', owner:'A. Osei', status:'Delegated', updated:'Yesterday', last:'Override Priority',
+        events:[
+          {time:'16:40', type:'HUMAN DECISION', sum:'Priority corrected #4 → #6 — “Alternate carrier confirmed”', who:'A. Osei'},
+          {time:'16:38', type:'HUMAN DECISION', sum:'Delegate — Carrier Relations · A. Osei', who:'R. Mensah'},
+          {time:'16:35', type:'SYSTEM', sum:'Recalculation — 4 exceptions changed rank'},
+          {time:'15:50', type:'SIGNAL', sum:'Bookings rejected 0 → 5'},
+          {time:'15:44', type:'SIGNAL', sum:'Spot rate +38%'}
+        ]},
+      { ex:'WH-DXB-02', title:'Warehouse labor gap — shift short', owner:'J. Park', status:'Resolved', updated:'2 days ago', last:'Override Priority',
+        events:[
+          {time:'09:10', type:'HUMAN DECISION', sum:'Priority corrected #6 → #9 — “Impact count included non-critical orders”', who:'J. Park'},
+          {time:'09:08', type:'SYSTEM', sum:'Recalculation — 2 exceptions changed rank'},
+          {time:'08:30', type:'SIGNAL', sum:'Backlog 20u → 60u'},
+          {time:'08:15', type:'SIGNAL', sum:'Staffing full → −4 heads'}
+        ]},
+      { ex:'SHP-6604', title:'Weather reroute — storm cleared', owner:'R. Mensah', status:'Resolved', updated:'2 days ago', last:'Override Priority',
+        events:[
+          {time:'09:15', type:'HUMAN DECISION', sum:'Priority corrected #3 → #8 — “Dependent order unaffected”', who:'R. Mensah'},
+          {time:'09:12', type:'SYSTEM', sum:'Recalculation — 5 exceptions changed rank'},
+          {time:'08:40', type:'SIGNAL', sum:'Route blocked → restored'},
+          {time:'08:36', type:'SIGNAL', sum:'ETA delay +30h → recovered'}
+        ]}
+    ];
+    // live prototype actions (from Take Action / Delegate / Monitor) fold into their exception's timeline
+    const liveEvents = (s.extraDelegations||[]).map(d=>({
+      ex:d.ex, time:d.time, type:'HUMAN DECISION',
+      sum: d.action + (d.note && d.note!=='—' ? (' — “'+d.note+'”') : (d.assignee && d.assignee!=='—' ? (' — '+d.assignee) : '')),
+      who: d.actor
+    }));
+    const mergedFor = (ex) => [...liveEvents.filter(e=>e.ex===ex), ...(auditCases.find(c=>c.ex===ex)||{events:[]}).events];
+    const auditEventMinutes = (t) => {
+      const m = String(t).match(/^(\d{1,2}):(\d{2})$/);
+      if (m) return +m[1]*60 + +m[2];
+      return 99999;
+    };
+    const AUDIT_TYPE_ORDER = {'SIGNAL':0,'SYSTEM':1,'AI PRIORITY':2,'HUMAN DECISION':3,'OUTCOME':4};
+    const sortAuditTimeline = (events) => [...events].sort((a,b) => {
+      const ta = auditEventMinutes(a.time), tb = auditEventMinutes(b.time);
+      if (ta !== tb) return ta - tb;
+      return (AUDIT_TYPE_ORDER[a.type]||9) - (AUDIT_TYPE_ORDER[b.type]||9);
+    });
+
+    // ---- Decision Review: reconstruct AI → human → recalc → confirm → outcome per case ----
+    const REVIEW_META = {
+      'SHP-4471':{ human:'Temperature rising on pharma export. SLA risk signal is stale.',
+        why:['Temperature risk is rising','7 orders are affected','1 VIP order is exposed','SLA risk could not be verified'],
+        outcome:'Temperature threshold breached 47 minutes later. Case escalated to #1.',
+        assessment:'Human correction was directionally correct. The stale SLA signal contributed to the initial under-ranking.', signal:'AI under-ranked' },
+      'SHP-2841':{ human:'Local buffer stock confirmed at destination DC — dependent orders not at risk.',
+        why:['Buffer stock covers 4 days of demand','Dependent orders no longer exposed','Customs hold is clearance-tracking, not a breach'],
+        outcome:'Clearance completed 6h later with no SLA breach. Priority held at #6.',
+        assessment:'Human correction was correct. AI over-weighted the unconfirmed downstream assumption.', signal:'AI over-ranked' },
+      'SHP-5127':{ human:'HS code re-validated with broker — the earlier flag was stale.',
+        why:['HS code confirmed valid','Clearance block was a data artifact','No downstream orders blocked'],
+        outcome:'Clearance released next cycle. No escalation.',
+        assessment:'Human correction was correct. Signal quality, not risk, drove the initial rank.', signal:'AI over-ranked' },
+      'LANE-EU-07':{ human:'Alternate carrier capacity confirmed on the affected lane.',
+        why:['Fallback capacity restored','Spot-rate exposure recoverable','Bookings re-routed within SLA'],
+        outcome:'Lane recovered via alternate carrier. No orders missed SLA.',
+        assessment:'Human correction was correct. Fallback availability changed the true risk.', signal:'AI over-ranked' },
+      'WH-DXB-02':{ human:'Impact count included non-critical internal transfer orders.',
+        why:['Critical order count was 12, not 60','Backlog affects staging only','No customer SLA at risk'],
+        outcome:'Backlog cleared on recovery shift. No customer impact.',
+        assessment:'Human correction was correct. Exposure was overstated by order-count scope.', signal:'AI over-ranked' },
+      'SHP-6604':{ human:'Dependent order was already delivered — reroute did not affect it.',
+        why:['Storm cleared, route restored','Dependent order unaffected','ETA recovered before deadline'],
+        outcome:'Route restored, delivery on time. No escalation.',
+        assessment:'Human correction was correct. The dependency link was already resolved.', signal:'AI over-ranked' },
+      'SHP-7712':{ human:'', why:[], outcome:'Dwell stabilized under monitoring. Never required Focus intervention.',
+        assessment:'No correction was needed. AI assessment held.', signal:'No correction' }
+    };
+    const parseCorr = (ex) => {
+      const ev = mergedFor(ex).find(isPriorityCorrection);
+      if (!ev) return null;
+      const m = ev.sum.match(/#(\d+)\s*→\s*#(\d+)/);
+      return m ? { from:'#'+m[1], to:'#'+m[2], before:+m[1], after:+m[2], who:ev.who, time:ev.time } : null;
+    };
+    const buildReview = (c) => {
+      const corr = parseCorr(c.ex);
+      const meta = REVIEW_META[c.ex] || {};
+      if (!corr) {
+        const settled = (meta.signal==='No correction');
+        return { corrected:false,
+          headline: settled ? 'No priority correction' : 'Review in progress',
+          decision: settled ? (c.last==='Monitor Changes'?'Monitoring continued':c.last) : 'Under review',
+          signal: meta.signal || 'Human context added', settled,
+          outcome: settled ? (meta.outcome||'—') : 'Pending — this case is still open for human review.',
+          assessment: settled ? (meta.assessment||'AI assessment held; no human correction was required.') : 'No correction has been recorded yet. The AI ranking is under human review.' };
+      }
+      return { corrected:true, headline:'Priority corrected', aiInitial:corr.from, recalcFrom:corr.from, recalcTo:corr.to,
+        moved: (corr.after<corr.before?'↑':'↓')+Math.abs(corr.before-corr.after),
+        decision:'Priority '+corr.from+' → '+corr.to, signal: meta.signal || (corr.after<corr.before?'AI under-ranked':'AI over-ranked'),
+        human: meta.human||'—', why: meta.why||[], confirmedBy: corr.who||c.owner, confirmedAt: (corr.time&&corr.time!=='—'?corr.time:'14:26')+' UTC',
+        outcome: meta.outcome||'—', assessment: meta.assessment||'Recorded for model review.' };
+    };
+
+    const listReviewSignal = (c, rv) => {
+      const meta = REVIEW_META[c.ex] || {};
+      if (meta.signal === 'No correction' || c.ex === 'SHP-7712') return 'No correction';
+      if (!rv.corrected && c.ex === 'SHP-4471') return 'AI under-ranked';
+      if (!rv.corrected) return 'No correction';
+      if (rv.signal === 'AI under-ranked' || rv.signal === 'AI over-ranked') return rv.signal;
+      return 'No correction';
+    };
+    const reviewOutlineChipStyle = (signal) => signal === 'AI over-ranked'
+      ? 'display:inline-flex;align-items:center;font-size:10px;font-weight:600;border-radius:8px;padding:3px 8px;border:1px solid #c9c9c4;color:#4a4a46;background:transparent;'
+      : signal === 'AI under-ranked'
+        ? 'display:inline-flex;align-items:center;font-size:10px;font-weight:600;border-radius:8px;padding:3px 8px;border:1px solid #f4d9b0;color:#8F5A00;background:transparent;'
+        : '';
+    const updatedMinutes = (u) => {
+      const m = String(u).match(/^(\d+)m ago$/);
+      if (m) return +m[1];
+      if (u==='1h ago') return 60;
+      if (u==='Yesterday') return 24*60;
+      if (String(u).includes('days')) return parseInt(u)*24*60;
+      return 9999;
+    };
+
+    const auditListStatusStyle = (label) => label==='Needs Review'
+      ? chipStyle(label)
+      : 'display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.01em;border-radius:20px;padding:3px 10px 3px 8px;background:#fff;border:1px solid #dcdbd7;color:#6f6f6a;';
+    const auditListStatusDot = (label) => label==='Needs Review'
+      ? dotStyle(label)
+      : 'width:6px;height:6px;border-radius:50%;flex:none;background:#6f6f6a;';
+    const LIST_EVIDENCE = {
+      'SHP-2841':'Clearance completed, no breach',
+      'LANE-EU-07':'Lane recovered, no SLA miss',
+      'WH-DXB-02':'Backlog cleared, no customer impact',
+      'SHP-6604':'ETA recovered, no SLA miss',
+      'SHP-7712':'Dwell stabilized, no Focus intervention'
+    };
+    const SUMMARY_CONFIRMED = ['SHP-2841','LANE-EU-07','WH-DXB-02','SHP-6604'];
+
+    const auditListRowsUnsorted = auditCases.map(c=>{
+      const evs = mergedFor(c.ex);
+      const corr = humanCorrectionCount(evs);
+      const live = liveEvents.filter(e=>e.ex===c.ex)[0];
+      const last = live ? (isPriorityCorrection(live) ? 'Priority corrected' : live.sum.split(' — ')[0]) : c.last;
+      const rv = buildReview(c);
+      const reviewSignal = listReviewSignal(c, rv);
+      const is4471Open = !rv.corrected && c.ex==='SHP-4471';
+      const is5127Pending = c.ex==='SHP-5127' && c.status==='Needs Review';
+      const humanCorrectedSignal = reviewSignal==='AI under-ranked' || reviewSignal==='AI over-ranked';
+      const decisionLine1 = is4471Open ? 'Under review' : rv.decision;
+      const decisionLine2 = (is4471Open || is5127Pending) ? 'Outcome pending'
+        : humanCorrectedSignal ? 'Correction confirmed by outcome'
+        : 'AI assessment held';
+      const decisionLine3 = (is4471Open || is5127Pending) ? '' : (LIST_EVIDENCE[c.ex]||'');
+      const hasHumanCorrection = !!parseCorr(c.ex) || c.ex==='SHP-4471';
+      return {
+        ex:c.ex, title:c.title, owner:c.owner, updated: live? '1m ago' : c.updated, last,
+        reviewSignal,
+        hasReviewChip: humanCorrectedSignal,
+        hasReviewQuiet: reviewSignal==='No correction',
+        reviewSignalStyle: reviewOutlineChipStyle(reviewSignal),
+        reviewSignalDotStyle: 'width:5px;height:5px;border-radius:50%;flex:none;background:#b0b0aa;',
+        decisionLine1, decisionLine2, decisionLine3,
+        hasDecisionLine3: !!decisionLine3,
+        decisionLine1Style: is4471Open
+          ? 'font-size:11.5px;color:#6f6f6a;'
+          : 'font-size:11.5px;color:#212121;font-weight:600;',
+        decisionLine2Style: 'font-size:10.5px;color:#6f6f6a;margin-top:3px;line-height:1.35;',
+        hasHumanCorrection,
+        summaryConfirmed: SUMMARY_CONFIRMED.includes(c.ex) || (c.ex==='SHP-4471' && rv.corrected),
+        summaryPending: is4471Open || is5127Pending,
+        summaryNoCorrection: c.ex==='SHP-7712',
+        correctionsLabel: corr>0 ? (corr+' correction'+(corr>1?'s':'')) : '—', hasCorrections: corr>0,
+        corrStyle: 'font-size:11.5px;'+(corr>0?'color:#212121;font-weight:600;':'color:#b0b0aa;'),
+        statusLabel:c.status, statusStyle:auditListStatusStyle(c.status), statusDot:auditListStatusDot(c.status),
+        rowStyle:'display:grid;grid-template-columns:1.7fr 128px 1.05fr 118px 84px;gap:0;padding:13px 16px;border-bottom:1px solid #efeeeb;cursor:pointer;align-items:center;background:#fff;',
+        rowHover:'background:#f7f6f3;',
+        open: ()=> this.setState({ auditOpen:c.ex, auditFilter:'all' })
+      };
+    });
+    const auditListRows = [...auditListRowsUnsorted].sort((a,b)=>{
+      const needA = a.statusLabel==='Needs Review' ? 0 : 1;
+      const needB = b.statusLabel==='Needs Review' ? 0 : 1;
+      if (needA!==needB) return needA-needB;
+      return updatedMinutes(a.updated)-updatedMinutes(b.updated);
+    });
+    const outcomesConfirmed = 4 + (s.underRankPromoted ? 1 : 0);
+    const outcomesPending = 2 - (s.underRankPromoted ? 1 : 0);
+    const auditSummary = {
+      total: s.underRankPromoted ? 32 : 31,
+      assessmentHeldPct: '81%',
+      overRanked: 5,
+      underRanked: s.underRankPromoted ? 2 : 1,
+      confirmedText: outcomesConfirmed+' of 6 corrections confirmed by outcome',
+      pendingNote: outcomesPending+' outcome'+(outcomesPending!==1?'s':'')+' pending'
+    };
+    const openCase = auditCases.find(c=>c.ex===s.auditOpen);
+    const auditFilter = s.auditFilter || 'all';
+    const FMAP = {all:null, signal:'SIGNAL', system:'SYSTEM', ai:'AI PRIORITY', human:'HUMAN DECISION', outcome:'OUTCOME'};
+    const FTABS = [['all','All'],['signal','Signals'],['system','System'],['ai','AI Priority'],['human','Human'],['outcome','Outcomes']];
+    const auditFilterTabs = FTABS.map(([k,label])=>({
+      label, onClick:()=>this.setState({auditFilter:k}),
+      style:'padding:6px 13px;font-size:11px;font-weight:600;border-radius:8px;cursor:pointer;user-select:none;'+(auditFilter===k?'background:#212121;color:#f2f2ef;':'background:#fff;border:1px solid #dcdbd7;color:#4a4a46;')
+    }));
+    let auditCaseSel = null;
+    if (openCase) {
+      const merged = mergedFor(openCase.ex);
+      const wanted = FMAP[auditFilter];
+      const evs = sortAuditTimeline(merged.filter(e=> !wanted || e.type===wanted)).map(mapTimelineEvent);
+      const corr = humanCorrectionCount(merged);
+      auditCaseSel = {
+        ex:openCase.ex, title:openCase.title, owner:openCase.owner,
+        statusLabel:openCase.status, statusStyle:chipStyle(openCase.status), statusDot:dotStyle(openCase.status),
+        events:evs, count: evs.length+(evs.length===1?' event':' events'),
+        correctionsLabel: corr===0 ? 'No corrections yet' : (corr+' human correction'+(corr!==1?'s':'')),
+        review: buildReview(openCase)
+      };
+    }
+    const dr = auditCaseSel ? auditCaseSel.review : {};
+    const drWhy = (dr.why||[]).map(w=>({ text:w }));
+    const drSigColor = dr.signal==='AI under-ranked' ? {fg:'#E24343',bg:'#FCECEC'} : dr.signal==='AI over-ranked' ? {fg:'#836316',bg:'#f6ecd6'} : {fg:'#6f6f6a',bg:'#f0efec'};
+    const drSignalStyle = 'display:inline-flex;align-items:center;font-size:9.5px;font-weight:700;letter-spacing:.03em;border-radius:20px;padding:3px 10px;color:'+drSigColor.fg+';background:'+drSigColor.bg;
+
+    // ---- Monitor: operational health roll-up (awareness layer, links out to source tools) ----
+    const focusFromMonitor = () => this.setState({ screen:'queue' });
+    const HEALTH = {
+      green:{dot:'#2CB380',fg:'#1B7A55',bg:'#E5F1EA',label:'On track'},
+      amber:{dot:'#c69320',fg:'#836316',bg:'#f6ecd6',label:'Watch'},
+      red:{dot:'#E24343',fg:'#E24343',bg:'#FCECEC',label:'At risk'}
+    };
+    const monitorSeed = [
+      {area:'Customs & Compliance', status:'red', line:'Inspection hold escalating — SLA breach in 4h', open:2, tool:'Broker EDI'},
+      {area:'Port & Ocean', status:'amber', line:'Vessel dwell rising at 1 port', open:1, tool:'TMS'},
+      {area:'Carrier Capacity', status:'amber', line:'Carrier capacity tightening on 1 EU lane — alternates still available', open:1, tool:'TMS'},
+      {area:'Cold Chain', status:'green', line:'All shipments in temperature range', open:0, tool:'WMS'},
+      {area:'Warehouse & Cross-dock', status:'green', line:'DXB labor recovered to plan', open:0, tool:'WMS'},
+      {area:'Documentation', status:'green', line:'No clearance blocks open', open:0, tool:'OMS'},
+      {area:'Last-mile & Delivery', status:'green', line:'On-time delivery within target', open:0, tool:'OMS'}
+    ];
+    const monitorDomains = monitorSeed.map(d=>{
+      const c = HEALTH[d.status];
+      const clickable = d.status!=='green';
+      return {
+        area:d.area, line:d.line, tool:d.tool,
+        open:d.open, hasOpen:d.open>0,
+        openLabel:d.open+(d.open===1?' open exception':' open exceptions'),
+        statusLabel:c.label,
+        dotStyle:'width:9px;height:9px;border-radius:50%;flex:none;background:'+c.dot,
+        chipStyle:'display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;border-radius:20px;padding:3px 9px 3px 7px;color:'+c.fg+';background:'+c.bg,
+        rowStyle:'display:grid;grid-template-columns:16px 1.4fr 0.85fr 158px 138px;gap:0;align-items:center;padding:14px 16px;border-bottom:1px solid #efeeeb;background:#fff;'+(clickable?'cursor:pointer;':''),
+        rowHover: clickable ? 'background:#faf9f7;' : 'background:#fff;',
+        onRow: clickable ? (()=>this.setState({ monitorArea:d.area })) : (()=>{}),
+        focusLabel: d.open+(d.open===1?' open exception':' open exceptions'),
+        focusStyle:'font-size:11px;color:#6f6f6a;',
+        sourceStyle:'font-size:11px;color:#6f6f6a;cursor:pointer',
+        openSource: ()=>{}
+      };
+    });
+    const rCount = monitorSeed.filter(d=>d.status==='red').length;
+    const aCount = monitorSeed.filter(d=>d.status==='amber').length;
+    const gCount = monitorSeed.filter(d=>d.status==='green').length;
+    const monitorHealth = {
+      headline: rCount>0 ? (rCount+' area'+(rCount>1?'s':'')+' at risk · '+aCount+' to watch') : (aCount>0? (aCount+' area'+(aCount>1?'s':'')+' to watch') : 'All operations on track'),
+      red:rCount, amber:aCount, green:gCount,
+      openTotal: monitorSeed.reduce((n,d)=>n+d.open,0)
+    };
+
+    // ---- Monitor emerging-risk detail (weak signals the AI has NOT yet prioritized into Focus) ----
+    const MON_DETAIL = {
+      'Port & Ocean':{ status:'amber', case:'SHP-7712', kind:'watch',
+        signalTitle:'Vessel dwell is rising', from:'3h', to:'12h', window:'in the last 6 hours',
+        assessment:'Not prioritized yet',
+        why:['No linked SLA breach detected','1 shipment affected','Alternate carrier capacity available'],
+        triggers:['Dwell exceeds 16h','Linked affected orders increase above 4','Alternate capacity becomes unavailable'] },
+      'Carrier Capacity':{ status:'amber', case:'LANE-EU-07', kind:'watch',
+        signalTitle:'Capacity shortfall is developing', from:'0 rejects', to:'3 rejects', window:'in the last 4 hours',
+        assessment:'Not prioritized yet',
+        why:['No SLA breach linked yet','2 lanes affected','Spot-market capacity still available'],
+        triggers:['Booking rejections exceed 8','Affected orders rise above 6','Spot capacity becomes unavailable'] },
+      'Customs & Compliance':{ status:'red', case:'SHP-2841', kind:'risk',
+        signalTitle:'Inspection hold is escalating', from:'42%', to:'88%', window:'SLA breach in ~4h',
+        assessment:'Already prioritized in Focus',
+        why:['SLA breach risk confirmed at 88%','12 orders · 2 VIP exposed','No alternate clearance path'] }
+    };
+    const md = s.monitorArea ? MON_DETAIL[s.monitorArea] : null;
+    const monitorPanelOpen = !!md;
+    let mp = {};
+    if (md) {
+      const c = HEALTH[md.status];
+      const isRisk = md.kind==='risk';
+      const areaFocusRows = isRisk ? work
+        .filter(ex => EX_AREA[ex.id]===s.monitorArea)
+        .sort((a,b)=>a.rank-b.rank)
+        .map(ex=>{
+          const state = effState(ex);
+          const title = EX_SHORT[ex.id] || ex.issue;
+          return {
+            label: ex.id+' · '+title+' · #'+ex.rank+' in Focus',
+            stateLabel: state,
+            stateStyle: chipStyle(state),
+            stateDot: dotStyle(state),
+            open: ()=>this.setState({ monitorArea:null, screen:'detail', selectedId:ex.id })
+          };
+        }) : [];
+      mp = {
+        area:s.monitorArea, statusLabel:c.label,
+        chipStyle:'display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;border-radius:20px;padding:3px 9px 3px 7px;color:'+c.fg+';background:'+c.bg,
+        dotStyle:'width:8px;height:8px;border-radius:50%;flex:none;background:'+c.dot,
+        signalTitle:md.signalTitle, from:md.from, to:md.to, window:md.window,
+        assessment:md.assessment,
+        assessDot:'width:9px;height:9px;border-radius:50%;flex:none;background:'+(isRisk?'#E24343':'#c69320'),
+        hasAreaFocus: isRisk && areaFocusRows.length>0,
+        areaFocusRows,
+        whyLabel: isRisk?'Why it is in Focus':'Why it is not in Focus',
+        whyRows:(md.why||[]).map(t=>({text:t})),
+        hasTriggers: !isRisk,
+        triggerRows:(md.triggers||[]).map(t=>({text:t})),
+        primaryLabel: isRisk?'Review in Focus':'Review Priority',
+        primary: isRisk ? (()=>this.setState({ monitorArea:null, screen:'queue', areaFilter:s.monitorArea, judgmentFilter:false }))
+                        : (()=>this.setState({ monitorArea:null, screen:'reviewDetail', recalc:'review', slaJudge:null, tempJudge:null, slaReason:null, tempReason:null }))
+      };
+    }
+
+    // ---- Delegate assignment (Exception Detail) ----
+    const ASSIGNEES = [
+      {label:'Customs Operations · Maria L.', meta:'Person · Customs team lead'},
+      {label:'Customs Operations', meta:'Operational team'},
+      {label:'SLA Desk · J. Park', meta:'Person · SLA monitoring'},
+      {label:'Carrier Relations · A. Osei', meta:'Person · Carrier management'},
+      {label:'Regional Ops Lead · R. Mensah', meta:'Role · Escalation owner'},
+      {label:'Warehouse DXB · Shift Lead', meta:'Role · WH-DXB-02'}
+    ];
+    const dq = (s.assigneeQuery||'').toLowerCase();
+    const assigneeOptions = ASSIGNEES.filter(a=> !dq || a.label.toLowerCase().includes(dq) || a.meta.toLowerCase().includes(dq)).map(a=>({
+      label:a.label, meta:a.meta,
+      onClick:()=>this.setState({delegateAssignee:a.label, assigneeQuery:a.label}),
+      style:'display:flex;flex-direction:column;gap:1px;padding:8px 11px;cursor:pointer;border-bottom:1px solid #efeeeb;'+(s.delegateAssignee===a.label?'background:#edf1f7;box-shadow:inset 3px 0 0 #2f6fb0;':'background:#fff;'),
+      styleHover: s.delegateAssignee===a.label?'background:#e7edf6;':'background:#f5f4f1;'
+    }));
+    const canDelegate = !!s.delegateAssignee;
+    const delegateBtnStyle = canDelegate
+      ? 'padding:10px 20px;background:#212121;color:#f2f2ef;border:1px solid #212121;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer'
+      : 'padding:10px 20px;background:#e6e5e2;color:#a9a9a3;border:1px solid #e6e5e2;border-radius:8px;font-size:12px;font-weight:600;cursor:not-allowed';
+
+    // ---- Take Action panel (Case Detail) ----
+    const RESPONSES = ['Contact customs broker','Escalate inspection request','Notify affected customers','Find alternate routing','Other'];
+    const responseOptions = RESPONSES.map(r=>{
+      const sel = s.actionResponse===r;
+      return { label:r, onClick:()=>this.setState({actionResponse:r}),
+        style:'display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid '+(sel?'#212121':'#dcdbd7')+';border-radius:8px;cursor:pointer;font-size:12px;font-weight:'+(sel?'600':'500')+';color:#212121;background:'+(sel?'#f3f2ef':'#fff')+';margin-bottom:7px',
+        dot:'width:13px;height:13px;border-radius:50%;flex:none;border:'+(sel?'4px solid #212121':'1.5px solid #b3b3ae') };
+    });
+    const ACTION_OWNERS = ['R. Mensah · Ops Manager','Customs Operations · Maria L.','SLA Desk · J. Park','Carrier Relations · A. Osei'];
+    const actionOwnerOptions = ACTION_OWNERS.map(o=>{
+      const sel = s.actionOwner===o;
+      return { label:o, onClick:()=>this.setState({actionOwner:o}),
+        style:'padding:7px 11px;border:1px solid '+(sel?'#212121':'#dcdbd7')+';border-radius:20px;cursor:pointer;font-size:11px;font-weight:'+(sel?'600':'500')+';color:'+(sel?'#212121':'#5a5a56')+';background:'+(sel?'#f0efec':'#fff') };
+    });
+    const canStartResponse = !!s.actionResponse;
+    const startResponseStyle = canStartResponse
+      ? 'padding:10px 20px;background:#2A5DE9;color:#f2f2ef;border:1px solid #2A5DE9;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer'
+      : 'padding:10px 20px;background:#e6e5e2;color:#a9a9a3;border:1px solid #e6e5e2;border-radius:8px;font-size:12px;font-weight:600;cursor:not-allowed';
+    const startResponseHover = canStartResponse ? 'background:#1F4AD1;border-color:#1F4AD1;' : '';
+    const actionOwnerShort = (s.actionOwner||'').split(' · ')[0];
+
+    // ---- Monitor Changes panel (Case Detail) ----
+    const WATCH = ['SLA risk increases','ETA changes','Customs status changes','Alternate capacity becomes available','Impacted order count changes'];
+    const watchState = s.monitorSignals || {'SLA risk increases':true,'Customs status changes':true,'Alternate capacity becomes available':true};
+    const watchOptions = WATCH.map(w=>{
+      const on = !!watchState[w];
+      return { label:w, onClick:()=>this.setState(st=>{ const cur=st.monitorSignals || {'SLA risk increases':true,'Customs status changes':true,'Alternate capacity becomes available':true}; return { monitorSignals: {...cur, [w]: !cur[w]} }; }),
+        style:'display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid '+(on?'#212121':'#dcdbd7')+';border-radius:8px;cursor:pointer;font-size:12px;font-weight:'+(on?'600':'500')+';color:#212121;background:'+(on?'#f3f2ef':'#fff')+';margin-bottom:7px',
+        box:'width:15px;height:15px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;border:'+(on?'none':'1.5px solid #b3b3ae')+';background:'+(on?'#212121':'#fff'),
+        check: on?'✓':'' };
+    });
+    const CONDITIONS = ['When a watched signal changes','If this case moves in priority','In 2 hours'];
+    const conditionOptions = CONDITIONS.map(c=>{
+      const sel = s.monitorCondition===c;
+      return { label:c, onClick:()=>this.setState({monitorCondition:c}),
+        style:'padding:8px 12px;border:1px solid '+(sel?'#212121':'#dcdbd7')+';border-radius:8px;cursor:pointer;font-size:11.5px;font-weight:'+(sel?'600':'500')+';color:'+(sel?'#212121':'#5a5a56')+';background:'+(sel?'#f0efec':'#fff') };
+    });
+    const monitorSignalList = {
+      'SLA risk':'88%', 'ETA delay':'+18h', 'Affected orders':'12', 'Alternate capacity':'None'
+    };
+    const monitorSignalRows = Object.keys(monitorSignalList).map(k=>({label:k, value:monitorSignalList[k]}));
+
+    // ---- Decision History log (Audit & Review) ----
+    const actMap = {'Take Action':'In Progress', Delegate:'Delegated', 'Monitor Changes':'Monitoring'};
+    const decisionLogSeed = [
+      {time:'Today · 14:26', actor:'R. Mensah', action:'Override Priority', ex:'SHP-2841', assignee:'—', note:'#1 → #6 · buffer stock confirmed'},
+      {time:'Today · 12:10', actor:'A. Osei', action:'Delegate', ex:'LANE-EU-07', assignee:'Carrier Relations · A. Osei', note:'Alt capacity follow-up'},
+      {time:'Yesterday · 16:40', actor:'R. Mensah', action:'Take Action', ex:'SHP-3390', assignee:'—', note:'Cold-chain recovery confirmed'}
+    ];
+    const decisionLog = [...s.extraDelegations, ...decisionLogSeed].map(d=>({
+      time:d.time, actor:d.actor, action:d.action, ex:d.ex, assignee:d.assignee, note:d.note,
+      actionStyle: d.action==='Override Priority' ? overrideBadge : chipStyle(actMap[d.action]||'Monitoring'),
+      actionDot: d.action==='Override Priority' ? overrideBadgeDot : dotStyle(actMap[d.action]||'Monitoring')
+    }));
+    const isTrail = s.auditTab!=='history';
+    const isHistory = s.auditTab==='history';
+    const tabActive='padding:8px 14px;font-size:12px;font-weight:700;color:#212121;border-bottom:2px solid #212121;margin-bottom:-1px;cursor:pointer';
+    const tabIdle='padding:8px 14px;font-size:12px;font-weight:600;color:#6f6f6a;cursor:pointer';
+
+    // ---- Current status band (Exception Detail): decision-grade "what am I dealing with now" ----
+    let handlingLabel='Unassigned', handlingKey='none';
+    if (s.delegatedTo) { handlingLabel='Delegated to '+String(s.delegatedTo).split(' · ')[0]; handlingKey='Delegated'; }
+    else if (s.decision==='In Progress') { handlingLabel='In Progress'; handlingKey='In Progress'; }
+    else if (s.decision==='Monitoring') { handlingLabel='Monitoring'; handlingKey='Monitoring'; }
+    const HANDLE_DOT = {none:'#6f6f6a','In Progress':'#3d76b8','Monitoring':'#8a97a5','Delegated':'#7d61b3'};
+    const handlingDotStyle='width:7px;height:7px;border-radius:50%;flex:none;background:'+(HANDLE_DOT[handlingKey]||'#6f6f6a');
+
+    return {
+      updatedAgo: '12s ago',
+      navItems, auditRows, auditSel,
+      isAudit: screen==='audit',
+      isAuditList: screen==='audit' && !s.auditOpen,
+      isAuditTimeline: screen==='audit' && !!s.auditOpen,
+      auditListRows, auditCaseSel, auditFilterTabs, auditSummary,
+      drWhy, drSignalStyle,
+      decisionReviewHeadline: dr.headline || '',
+      decisionReviewSignal: dr.signal || '',
+      decisionReviewCorrected: !!dr.corrected,
+      decisionReviewNoCorrection: !!auditCaseSel && !dr.corrected && !!dr.settled,
+      drAiInitial: dr.aiInitial || '', drRecalcFrom: dr.recalcFrom || '', drRecalcTo: dr.recalcTo || '',
+      drHuman: dr.human || '', drConfirmedBy: dr.confirmedBy || '', drConfirmedAt: dr.confirmedAt || '',
+      drOutcome: dr.outcome || '', drAssessment: dr.assessment || '',
+      backToAuditList: () => this.setState({ auditOpen:null }),
+      isMonitor: screen==='monitor',
+      monitorDomains, monitorHealth,
+      monitorPanelOpen, mp,
+      closeMonitorDetail: () => this.setState({ monitorArea:null }),
+      showDelegate: s.showDelegate, assigneeQuery: s.assigneeQuery, delegateNote: s.delegateNote,
+      assigneeOptions, delegateBtnStyle,
+      // Take Action
+      showAction: s.showAction, actionForm: s.showAction && !s.actionConfirmed, actionDone: s.showAction && s.actionConfirmed,
+      responseOptions, actionOwnerOptions, actionNote: s.actionNote,
+      startResponseStyle, startResponseHover, actionResponse: s.actionResponse, actionOwnerShort,
+      setActionNote: (e)=> this.setState({ actionNote:e.target.value }),
+      // Monitor Changes
+      showMonitor: s.showMonitor, monitorForm: s.showMonitor && !s.monitorConfirmed, monitorDone: s.showMonitor && s.monitorConfirmed,
+      watchOptions, conditionOptions, monitorSignalRows, monitorCondition: s.monitorCondition,
+      isDelegated: !!s.delegatedTo, delegatedTo: s.delegatedTo,
+      detailArea: EX_AREA['SHP-2841'],
+      detailOwnerName: ownerDisplay('SHP-2841', s.delegatedTo),
+      reviewDetailArea: EX_AREA['SHP-4471'],
+      reviewDetailOwner: OWNER_NAME['SHP-4471'],
+      judgmentCount,
+      hasFocusFilter: !!s.areaFilter || s.judgmentFilter,
+      focusFilterLabel: s.judgmentFilter ? 'Need your judgment' : (s.areaFilter || ''),
+      focusFilterCount: filteredSorted.length,
+      focusFilterCountWord: filteredSorted.length===1 ? 'exception' : 'exceptions',
+      clearFocusFilter: () => this.setState({ areaFilter: null, judgmentFilter: false }),
+      filterJudgment: () => this.setState({ judgmentFilter: true, areaFilter: null }),
+      goReviewStaleCase: () => this.setState({ screen:'reviewDetail', recalc:'review', slaJudge:null, tempJudge:null, slaReason:null, tempReason:null }),
+      handlingLabel, handlingDotStyle, goSourceRecord: ()=>{}, verifyInSource: ()=>{},
+      setQuery: (e)=> this.setState({ assigneeQuery:e.target.value, delegateAssignee:null }),
+      setDelegateNote: (e)=> this.setState({ delegateNote:e.target.value }),
+      cancelDelegate: () => this.setState({ showDelegate:false }),
+      confirmDelegate: () => { const a=this.state.delegateAssignee; if(!a) return; const note=this.state.delegateNote; this.setState(st=>({ decision:'Delegated', delegatedTo:a, showDelegate:false, extraDelegations:[{time:'14:33', actor:'R. Mensah', action:'Delegate', ex:'SHP-2841', assignee:a, note:note||'—'}, ...st.extraDelegations] })); },
+      decisionLog, isTrail, isHistory, tabTrailStyle: isTrail?tabActive:tabIdle, tabHistoryStyle: isHistory?tabActive:tabIdle,
+      auditCount: isHistory ? (decisionLog.length+' decisions') : '6 records · immutable',
+      setTabTrail: () => this.setState({ auditTab:'trail' }),
+      setTabHistory: () => this.setState({ auditTab:'history' }),
+      sources,
+      isQueue: screen==='queue', isDetail: screen==='detail', isReviewDetail: screen==='reviewDetail',
+      isOverride: screen==='override', isRecovery: screen==='recovery',
+      navQueueStyle: 'display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;'+
+        (screen==='queue'?'background:#212121;color:#f2f2ef;':'background:transparent;color:#3a3a37;'),
+      queue, headers,
+      showUnderRankBanner: !s.dismissUnderRank && !s.underRankPromoted,
+      dismissUnderRankBanner: () => this.setState({ dismissUnderRank:true }),
+      recalculate: () => { if(!recalcReady) return; this.setState({ recalc:'loading' }); setTimeout(()=>this.setState({ recalc:'done' }), 1400); },
+      recalcNotReady: !recalcReady,
+      recalcBtnStyle: 'padding:11px 22px;border-radius:8px;font-size:12px;font-weight:700;'+(recalcReady?'background:#2A5DE9;color:#f2f2ef;border:1px solid #2A5DE9;cursor:pointer;':'background:#efeeeb;color:#b0b0aa;border:1px solid #e2e2df;cursor:not-allowed;'),
+      recalcBtnHover: recalcReady?'background:#1F4AD1;border-color:#1F4AD1;':'background:#efeeeb;',
+      slaLooks: () => this.setState({ slaJudge:'ok', slaReason:null }),
+      slaNot: () => this.setState({ slaJudge:'not' }),
+      tempLooks: () => this.setState({ tempJudge:'ok', tempReason:null }),
+      tempNot: () => this.setState({ tempJudge:'not' }),
+      pickSlaStale: () => this.setState({ slaChoice:'stale' }),
+      pickSlaCurrent: () => this.setState({ slaChoice:'current' }),
+      pickTempConfirm: () => this.setState({ tempChoice:'confirm' }),
+      pickTempCorrect: () => this.setState({ tempChoice:'correct' }),
+      addMoreContext: () => this.setState({ recalc:'review' }),
+      openReprioConfirm: () => this.setState({ showReprioDone:true }),
+      keepUnderRankPriority: () => this.setState({ screen:'queue', recalc:'review' }),
+      backToFocusPromoted: () => this.setState({ underRankPromoted:true, showReprioDone:false, cascadeOpen:false, dismissUnderRank:true, screen:'queue', recalc:'review' }),
+      pickSlaStale: () => this.setState({ slaChoice:'stale' }),
+      pickSlaCurrent: () => this.setState({ slaChoice:'current' }),
+      pickTempConfirm: () => this.setState({ tempChoice:'confirm' }),
+      pickTempCorrect: () => this.setState({ tempChoice:'correct' }),
+      ledger, factors,
+      rankOptions, reasonOptions, contextEcho,
+      njReview: recalc!=='loading' && recalc!=='done',
+      njLoading: recalc==='loading',
+      njDone: recalc==='done',
+      slaLooksStyle: judgeBtn(slaJudge==='ok'), slaLooksHover: judgeBtnHover(slaJudge==='ok'),
+      slaNotStyle: judgeBtn(slaJudge==='not'), slaNotHover: judgeBtnHover(slaJudge==='not'),
+      tempLooksStyle: judgeBtn(tempJudge==='ok'), tempLooksHover: judgeBtnHover(tempJudge==='ok'),
+      tempNotStyle: judgeBtn(tempJudge==='not'), tempNotHover: judgeBtnHover(tempJudge==='not'),
+      slaNotOpen: slaJudge==='not', tempNotOpen: tempJudge==='not',
+      slaReasonOptions: mkReasons(slaReason, (k)=>({ slaReason:k })),
+      tempReasonOptions: mkReasons(tempReason, (k)=>({ tempReason:k })),
+      toggleCascade: () => this.setState(st=>({ cascadeOpen: !st.cascadeOpen })),
+      cascadeOpen: !!s.cascadeOpen,
+      cascadeChevron: s.cascadeOpen ? '▲' : '▼',
+      cascadeRows: [
+        { title:'Carrier capacity shortfall', from:'#3', to:'#4' },
+        { title:'Documentation mismatch — HS code', from:'#4', to:'#5' },
+        { title:'Weather reroute — storm cleared', from:'#5', to:'#6' },
+        { title:'Warehouse labor gap — shift short', from:'#6', to:'#7' }
+      ],
+      showReprioDone: !!s.showReprioDone,
+      ovCaseLine: ovCase.line, ovAiRank: ovCase.aiRank, ovShip: ovCase.ship, ovRankLine: ovCase.rankLine,
+      recoveredQueue,
+      goQueue: () => this.setState({ screen:'queue' }),
+      goDetail: () => this.setState({ screen:'detail' }),
+      goOverride: () => this.setState({ screen:'override', overrideCase:'SHP-2841' }),
+      goAct: () => this.setState({ showAction:true, actionConfirmed:false }),
+      startResponse: () => { if(!this.state.actionResponse) return; this.setState({ actionConfirmed:true }); },
+      cancelAction: () => this.setState({ showAction:false, actionConfirmed:false }),
+      finishAction: () => this.setState(st=>({ decision:'In Progress', showAction:false, actionConfirmed:false, screen:'queue', extraDelegations:[{time:'14:33', actor:'R. Mensah', action:'Take Action', ex:'SHP-2841', assignee:st.actionOwner, note:st.actionResponse+(st.actionNote?(' · '+st.actionNote):'')}, ...st.extraDelegations] })),
+      goDelegate: () => this.setState({ showDelegate:true }),
+      goMonitor: () => this.setState({ showMonitor:true, monitorConfirmed:false }),
+      startMonitoring: () => this.setState({ monitorConfirmed:true }),
+      cancelMonitor: () => this.setState({ showMonitor:false, monitorConfirmed:false }),
+      finishMonitor: () => this.setState(st=>({ decision:'Monitoring', showMonitor:false, monitorConfirmed:false, screen:'queue', extraDelegations:[{time:'14:33', actor:'R. Mensah', action:'Monitor Changes', ex:'SHP-2841', assignee:'—', note:'Watching signals · notify '+(st.monitorCondition||'on change').toLowerCase()}, ...st.extraDelegations] })),
+      applyOverride: () => this.setState({ screen:'recovery', overrideApplied:true }),
+      undoOverride: () => this.setState({ screen:'queue', overrideApplied:false })
+    };
+  }
+}
+</script>
+</body>
+</html>
