@@ -1508,6 +1508,14 @@ class Component extends DCLogic {
         return x;
       });
     }
+    // ---- HUMAN OVERRIDE (SHP-2841): applied correction re-ranks the live queue ----
+    if (s.overrideApplied) {
+      work = work.map(x=>{
+        if (x.id==='SHP-2841') return {...x, rank:6, prev:1, state:'Monitoring', judge:false, overridden:true};
+        if (x.rank>=2 && x.rank<=6) return {...x, rank:x.rank-1, prev:x.rank};
+        return x;
+      });
+    }
     const sorted = [...work].sort((a,b) => {
       let av, bv;
       if (sortKey==='timerisk') { av=sortMeta[a.id].min; bv=sortMeta[b.id].min; }
@@ -1603,7 +1611,7 @@ class Component extends DCLogic {
 
     // Queue previews: ONE short phrase per case (detail explains the rest)
     const WHY = {
-      'SHP-2841':{pre:'SLA risk ',from:'42%',to:'88%'},
+      'SHP-2841': s.overrideApplied ? {pre:'Human correction \u2014 buffer stock confirmed'} : {pre:'SLA risk ',from:'42%',to:'88%'},
       'SHP-7712':{pre:'Vessel dwell ',from:'3h',to:'12h'},
       'SHP-3390':{pre:'Temp recovered — risk easing'},
       'LANE-EU-07':{pre:'Carrier capacity lost'},
