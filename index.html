@@ -645,7 +645,7 @@
               <!-- divider + priority correction (separate dimension) -->
               <div style="height:1px;background:#3a3a37;margin:14px 0 12px"></div>
               <div style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#87877f;margin-bottom:8px">AI priority incorrect?</div>
-              <div onClick="{{ goOverride }}" style="padding:11px;background:transparent;color:#e6e6e1;border:1px solid #55554f;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#26261f;border-color:#8a8a82;color:#fff">Override Priority</div>
+              <div onClick="{{ goOverride }}" style="padding:11px;background:transparent;color:#e6e6e1;border:1px solid #55554f;border-radius:8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#26261f;border-color:#8a8a82;color:#fff">Correct priority</div>
               <div style="font-size:10px;color:#87877f;margin-top:11px;line-height:1.5">AI surfaces evidence. The operational decision is yours and stays reversible.</div>
             </div>
           </div>
@@ -981,7 +981,7 @@
         <div onClick="{{ goDetail }}" style="font-size:11px;color:#6f6f6a;cursor:pointer;margin-bottom:12px">← Exception Detail</div>
         <div style="background:#fff;border:1px solid #e0e0dd;border-radius:8px;padding:22px 24px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-            <div style="font-size:18px;font-weight:700">Override Priority</div>
+            <div style="font-size:18px;font-weight:700">Correct priority</div>
             <span style="font-size:10px;color:#4a4a46;background:#f0efec;border:1px solid #dcdbd7;border-radius:8px;padding:4px 9px">Human correction</span>
           </div>
           <div class="mono" style="font-size:11px;color:#7a7a75;margin-bottom:18px">{{ ovCaseLine }}</div>
@@ -1072,7 +1072,7 @@
             <div style="font-size:19px;font-weight:700">Recalculation Impact</div>
             <div style="font-size:12px;color:#6f6f6a;margin-top:3px">Exceptions reprioritized after your human correction. Review the before → after rank changes below.</div>
           </div>
-          <div onClick="{{ undoOverride }}" style="padding:9px 16px;border:1px solid #a9a9a3;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:#fff">↺ Undo override</div>
+          <div onClick="{{ undoOverride }}" style="padding:9px 16px;border:1px solid #a9a9a3;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:#fff">↺ Undo correction</div>
         </div>
 
         <!-- correction banner -->
@@ -1134,7 +1134,7 @@
                 <div class="mono" style="font-size:10px;color:#7a7a75;margin-top:2px">{{ row.id }}</div>
               </div>
               <div style="font-size:11px;color:#5a5a56;line-height:1.4;padding-right:12px">{{ row.effect }}</div>
-              <div style="display:flex;align-items:center;gap:6px"><span style="{{ row.stateStyle }}"><span style="{{ row.stateDot }}"></span>{{ row.stateLabel }}</span><sc-if value="{{ row.overridden }}" hint-placeholder-val="{{ false }}"><span style="{{ row.overrideModStyle }}">Overridden</span></sc-if></div>
+              <div style="display:flex;align-items:center;gap:6px"><span style="{{ row.stateStyle }}"><span style="{{ row.stateDot }}"></span>{{ row.stateLabel }}</span><sc-if value="{{ row.overridden }}" hint-placeholder-val="{{ false }}"><span style="{{ row.overrideModStyle }}">Corrected</span></sc-if></div>
             </div>
           </sc-for>
         </div>
@@ -1773,7 +1773,7 @@ class Component extends DCLogic {
       {rank:3,prev:4,id:'LANE-EU-07',issue:'Carrier capacity shortfall',effect:'Shifted up one.',state:'Delegated'},
       {rank:4,prev:5,id:'SHP-5127',issue:'Documentation mismatch',effect:'Shifted up one.',state:'Needs judgment'},
       {rank:5,prev:6,id:'SHP-6604',issue:'Weather reroute',effect:'Shifted up one.',state:'Monitoring'},
-      {rank:6,prev:1,id:'SHP-2841',issue:'Customs hold',effect:'Your override — buffer stock removes risk to affected operations. Kept visible for clearance tracking.',state:'Monitoring',overridden:true},
+      {rank:6,prev:1,id:'SHP-2841',issue:'Customs hold',effect:'Your correction — buffer stock removes risk to affected operations. Kept visible for clearance tracking.',state:'Monitoring',overridden:true},
       {rank:7,prev:7,id:'WH-DXB-02',issue:'Warehouse labor gap',effect:'No change — independent of this correction.',state:'Needs judgment'},
       {rank:8,prev:8,id:'SHP-8890',issue:'Dock scheduling conflict',effect:'No change.',state:'Monitoring'}
     ];
@@ -1884,14 +1884,14 @@ class Component extends DCLogic {
           {time:'13:05', type:'SIGNAL', sum:'Vessel dwell 3h → 12h'},
           {time:'12:40', type:'SIGNAL', sum:'Vessels queued 1 → 3'}
         ]},
-      { ex:'SHP-5127', title:'Documentation mismatch — HS code', owner:'R. Mensah', status:'Needs Review', updated:'1h ago', last:'Override Priority',
+      { ex:'SHP-5127', title:'Documentation mismatch — HS code', owner:'R. Mensah', status:'Needs Review', updated:'1h ago', last:'Priority corrected',
         events:[
           {time:'11:02', type:'HUMAN DECISION', sum:'Priority corrected #5 → #7 — “HS code re-validated, flag was stale”', who:'R. Mensah'},
           {time:'11:02', type:'SYSTEM', sum:'Recalculation — 3 exceptions changed rank'},
           {time:'10:20', type:'SIGNAL', sum:'Clearance status open → blocked'},
           {time:'10:18', type:'SIGNAL', sum:'HS code valid → flagged'}
         ]},
-      { ex:'LANE-EU-07', title:'Carrier capacity shortfall', owner:'A. Osei', status:'Delegated', updated:'Yesterday', last:'Override Priority',
+      { ex:'LANE-EU-07', title:'Carrier capacity shortfall', owner:'A. Osei', status:'Delegated', updated:'Yesterday', last:'Priority corrected',
         events:[
           {time:'16:40', type:'HUMAN DECISION', sum:'Priority corrected #4 → #6 — “Alternate carrier confirmed”', who:'A. Osei'},
           {time:'16:38', type:'HUMAN DECISION', sum:'Delegate — Carrier Relations · A. Osei', who:'R. Mensah'},
@@ -1899,14 +1899,14 @@ class Component extends DCLogic {
           {time:'15:50', type:'SIGNAL', sum:'Bookings rejected 0 → 5'},
           {time:'15:44', type:'SIGNAL', sum:'Spot rate +38%'}
         ]},
-      { ex:'WH-DXB-02', title:'Warehouse labor gap — shift short', owner:'J. Park', status:'Resolved', updated:'2 days ago', last:'Override Priority',
+      { ex:'WH-DXB-02', title:'Warehouse labor gap — shift short', owner:'J. Park', status:'Resolved', updated:'2 days ago', last:'Priority corrected',
         events:[
           {time:'09:10', type:'HUMAN DECISION', sum:'Priority corrected #6 → #9 — “Impact count included non-critical orders”', who:'J. Park'},
           {time:'09:08', type:'SYSTEM', sum:'Recalculation — 2 exceptions changed rank'},
           {time:'08:30', type:'SIGNAL', sum:'Backlog 20u → 60u'},
           {time:'08:15', type:'SIGNAL', sum:'Staffing full → −4 heads'}
         ]},
-      { ex:'SHP-6604', title:'Weather reroute — storm cleared', owner:'R. Mensah', status:'Resolved', updated:'2 days ago', last:'Override Priority',
+      { ex:'SHP-6604', title:'Weather reroute — storm cleared', owner:'R. Mensah', status:'Resolved', updated:'2 days ago', last:'Priority corrected',
         events:[
           {time:'09:15', type:'HUMAN DECISION', sum:'Priority corrected #3 → #8 — “Dependent order unaffected”', who:'R. Mensah'},
           {time:'09:12', type:'SYSTEM', sum:'Recalculation — 5 exceptions changed rank'},
@@ -2274,14 +2274,14 @@ class Component extends DCLogic {
     // ---- Decision History log (Audit & Review) ----
     const actMap = {'Take Action':'In Progress', Delegate:'Delegated', 'Monitor Changes':'Monitoring'};
     const decisionLogSeed = [
-      {time:'Today · 14:26', actor:'R. Mensah', action:'Override Priority', ex:'SHP-2841', assignee:'—', note:'#1 → #6 · buffer stock confirmed'},
+      {time:'Today · 14:26', actor:'R. Mensah', action:'Priority corrected', ex:'SHP-2841', assignee:'—', note:'#1 → #6 · buffer stock confirmed'},
       {time:'Today · 12:10', actor:'A. Osei', action:'Delegate', ex:'LANE-EU-07', assignee:'Carrier Relations · A. Osei', note:'Alt capacity follow-up'},
       {time:'Yesterday · 16:40', actor:'R. Mensah', action:'Take Action', ex:'SHP-3390', assignee:'—', note:'Cold-chain recovery confirmed'}
     ];
     const decisionLog = [...s.extraDelegations, ...decisionLogSeed].map(d=>({
       time:d.time, actor:d.actor, action:d.action, ex:d.ex, assignee:d.assignee, note:d.note,
-      actionStyle: d.action==='Override Priority' ? overrideBadge : chipStyle(actMap[d.action]||'Monitoring'),
-      actionDot: d.action==='Override Priority' ? overrideBadgeDot : dotStyle(actMap[d.action]||'Monitoring')
+      actionStyle: d.action==='Priority corrected' ? overrideBadge : chipStyle(actMap[d.action]||'Monitoring'),
+      actionDot: d.action==='Priority corrected' ? overrideBadgeDot : dotStyle(actMap[d.action]||'Monitoring')
     }));
     const isTrail = s.auditTab!=='history';
     const isHistory = s.auditTab==='history';
