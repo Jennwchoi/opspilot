@@ -90,7 +90,7 @@
 
         <!-- SUMMARY BAND: frames evaluation, not reconstruction -->
         <div style="display:flex;gap:0;background:#f7f7f5;border:none;border-radius:8px;overflow:hidden;margin-bottom:16px">
-          <div style="flex:1;padding:12px 16px;border-right:1px solid #e2e2df">
+          <div onClick="{{ clearFocusFilter }}" style="flex:1;padding:12px 16px;border-right:1px solid #e2e2df;cursor:pointer" style-hover="background:#FEF4E8">
             <div class="mono" style="font-size:28px;font-weight:600">9</div>
             <div style="font-size:11px;color:#6f6f6a;margin-top:2px">Open exceptions</div>
           </div>
@@ -98,7 +98,7 @@
             <div class="mono" style="font-size:28px;font-weight:600">{{ judgmentCount }}</div>
             <div style="font-size:11px;color:#6f6f6a;margin-top:2px">Need your judgment</div>
           </div>
-          <div style="flex:1;padding:12px 16px;border-right:1px solid #e2e2df">
+          <div onClick="{{ filterRisk }}" style="flex:1;padding:12px 16px;border-right:1px solid #e2e2df;cursor:pointer" style-hover="background:#FEF4E8">
             <div class="mono" style="font-size:28px;font-weight:600">2</div>
             <div style="font-size:11px;color:#6f6f6a;margin-top:2px">At risk within 6h</div>
           </div>
@@ -1361,7 +1361,7 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { screen: 'queue', overrideApplied: false, newRank: 6, reason: 'missing', context: '', selectedId: 'SHP-2841', decision: null, auditSel: 'OVR-2041', sortKey: 'priority', sortDir: 'asc', showDelegate: false, assigneeQuery: '', delegateAssignee: null, delegateNote: '', delegatedTo: null, auditTab: 'trail', auditOpen: null, auditFilter: 'all', extraDelegations: [], showAction: false, actionResponse: null, actionOwner: 'R. Mensah · Ops Manager', actionNote: '', actionConfirmed: false, showMonitor: false, monitorSignals: null, monitorCondition: 'When a watched signal changes', monitorConfirmed: false, dismissUnderRank: false, underRankPromoted: false, areaFilter: null, judgmentFilter: false };
+  state = { screen: 'queue', overrideApplied: false, newRank: 6, reason: 'missing', context: '', selectedId: 'SHP-2841', decision: null, auditSel: 'OVR-2041', sortKey: 'priority', sortDir: 'asc', showDelegate: false, assigneeQuery: '', delegateAssignee: null, delegateNote: '', delegatedTo: null, auditTab: 'trail', auditOpen: null, auditFilter: 'all', extraDelegations: [], showAction: false, actionResponse: null, actionOwner: 'R. Mensah · Ops Manager', actionNote: '', actionConfirmed: false, showMonitor: false, monitorSignals: null, monitorCondition: 'When a watched signal changes', monitorConfirmed: false, dismissUnderRank: false, underRankPromoted: false, areaFilter: null, judgmentFilter: false, riskFilter: false };
 
   renderVals() {
     const s = this.state;
@@ -1403,7 +1403,7 @@ class Component extends DCLogic {
       {key:'monitor',label:'Monitor',n:''},
       {key:'audit',label:'Audit & Review',n:'31'}
     ].map(it=>({ label:it.label, n:it.n, hasN: it.n!=='',
-      onClick:()=>this.setState({screen:it.key, auditOpen:null, ...(it.key==='queue'?{areaFilter:null, judgmentFilter:false}:{})}),
+      onClick:()=>this.setState({screen:it.key, auditOpen:null, ...(it.key==='queue'?{areaFilter:null, judgmentFilter:false, riskFilter:false}:{})}),
       style: navBase+(screen===it.key?'background:#212121;color:#f2f2ef;':'background:transparent;color:#3a3a37;') }));
 
     // ---- movement badge style helper ----
@@ -1626,11 +1626,14 @@ class Component extends DCLogic {
       'SHP-5127':'3 orders','SHP-6604':'1 route','WH-DXB-02':'4 orders','SHP-8890':'2 orders','SHP-4471':'7 orders'
     };
 
+    const riskMin = (str) => { let m=0; const dd=/(\d+)\s*d/.exec(str||''); const hh=/(\d+)\s*h/.exec(str||''); const mm=/(\d+)\s*m/.exec(str||''); if(dd)m+=+dd[1]*1440; if(hh)m+=+hh[1]*60; if(mm)m+=+mm[1]; return m; };
     const filteredSorted = s.judgmentFilter
       ? sorted.filter(e => effState(e)==='Needs judgment')
-      : s.areaFilter
-        ? sorted.filter(e => EX_AREA[e.id]===s.areaFilter)
-        : sorted;
+      : s.riskFilter
+        ? sorted.filter(e => riskMin(e.sla) <= 360)
+        : s.areaFilter
+          ? sorted.filter(e => EX_AREA[e.id]===s.areaFilter)
+          : sorted;
     const judgmentCount = work.filter(e => effState(e)==='Needs judgment').length;
 
     const queue = filteredSorted.map((e) => {
@@ -2203,7 +2206,7 @@ class Component extends DCLogic {
         hasTriggers: !isRisk,
         triggerRows:(md.triggers||[]).map(t=>({text:t})),
         primaryLabel: isRisk?'Review in Focus':'Review Priority',
-        primary: isRisk ? (()=>this.setState({ monitorArea:null, screen:'queue', areaFilter:s.monitorArea, judgmentFilter:false }))
+        primary: isRisk ? (()=>this.setState({ monitorArea:null, screen:'queue', areaFilter:s.monitorArea, judgmentFilter:false, riskFilter:false }))
                         : (()=>this.setState({ monitorArea:null, screen:'reviewDetail', recalc:'review', slaJudge:null, tempJudge:null, slaReason:null, tempReason:null }))
       };
     }
@@ -2332,12 +2335,13 @@ class Component extends DCLogic {
       reviewDetailArea: EX_AREA['SHP-4471'],
       reviewDetailOwner: OWNER_NAME['SHP-4471'],
       judgmentCount,
-      hasFocusFilter: !!s.areaFilter || s.judgmentFilter,
-      focusFilterLabel: s.judgmentFilter ? 'Need your judgment' : (s.areaFilter || ''),
+      hasFocusFilter: !!s.areaFilter || s.judgmentFilter || s.riskFilter,
+      focusFilterLabel: s.judgmentFilter ? 'Need your judgment' : s.riskFilter ? 'At risk within 6h' : (s.areaFilter || ''),
       focusFilterCount: filteredSorted.length,
       focusFilterCountWord: filteredSorted.length===1 ? 'exception' : 'exceptions',
-      clearFocusFilter: () => this.setState({ areaFilter: null, judgmentFilter: false }),
-      filterJudgment: () => this.setState({ judgmentFilter: true, areaFilter: null }),
+      clearFocusFilter: () => this.setState({ areaFilter: null, judgmentFilter: false, riskFilter: false }),
+      filterJudgment: () => this.setState(s.judgmentFilter ? { judgmentFilter: false } : { judgmentFilter: true, areaFilter: null, riskFilter: false }),
+      filterRisk: () => this.setState(s.riskFilter ? { riskFilter: false } : { riskFilter: true, judgmentFilter: false, areaFilter: null }),
       goReviewStaleCase: () => this.setState({ screen:'reviewDetail', recalc:'review', slaJudge:null, tempJudge:null, slaReason:null, tempReason:null }),
       handlingLabel, handlingDotStyle, goSourceRecord: ()=>{}, verifyInSource: ()=>{},
       setQuery: (e)=> this.setState({ assigneeQuery:e.target.value, delegateAssignee:null }),
